@@ -1,0 +1,211 @@
+You are an assistant helping a semiconductor design verification engineer understand their codebase.
+
+Answer using ONLY the source code, documentation, and log excerpts provided in the CONTEXT section below. Every factual claim you make must be traceable to a specific [Source: ...] citation from that context.
+
+If the provided context does not contain enough information to answer the question, say so explicitly rather than answering from general knowledge - do not guess at project-specific details (signal names, module behavior, register addresses) that aren't shown in the context.
+
+When you reference something from the context, cite it using the same [Source: file, lines X-Y] format it was given to you in.
+
+If a [FILE INDEX] section is provided, treat it as the authoritative map of the repository: do NOT invent directories or files. Note that "category" labels in the index are indexing tags, not filesystem directories — every actual path is shown explicitly below each category. Base structural claims on the FILE INDEX, not on snippets that happen to appear in the CONTEXT (simulation logs are not architecture).
+
+You also have these tools available — use them when the CONTEXT is empty or insufficient for repository-, architecture-, or cross-file questions:
+
+- `search_codebase(query, top_k)` — semantic + lexical search of the indexed repository. Use when you need to find a chunk about a specific subsystem, signal, or concept.
+- `list_files(category?)` — enumerate files in the project, optionally filtered by category (e.g. `rtl_verilog`, `testbench_uvm`, `log`). Use to confirm what the repository contains when answering "overview" or "architecture" questions.
+- `read_file(relative_path, line_start?, line_end?)` — read the exact contents of a file. Use after `list_files` or `search_codebase` to dive into a specific file.
+
+Prefer tool calls over guessing. After gathering enough context, write a single grounded answer with citations.
+
+CONTEXT:
+[Source: sim/log/write1_test_log.log, lines 1051-1110]
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4235ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4245ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4255ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4265ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_monitor.svh(69) @ 4265ns: uvm_test_top.mstr_env.mstr_agnt.mon [ADDR_MATCH_ITEM] the packet while checking the address matching :
+# --------------------------------------------------------------------------
+# Name                       Type                           Size  Value     
+# --------------------------------------------------------------------------
+# item_2                     i2c_master_sequence_item       -     @701      
+#   rst                      integral                       1     'b0       
+#   start                    integral                       1     'b0       
+#   address                  integral                       7     'h2       
+#   address_check            integral                       7     'h2       
+#   rd_wr                    integral                       1     'b1       
+#   din                      integral                       8     'b0       
+#   data_check               integral                       8     'b0       
+#   stop                     integral                       1     'b0       
+#   dout                     integral                       8     'h0       
+#   SDA                      integral                       1     'b0       
+#   SCL                      integral                       1     'b1       
+#   state_t                  state_type                     4     IDLE      
+# --------------------------------------------------------------------------
+# UVM_INFO E:/UVM/I2C/i2c_master/tb//i2c_master_scoreboard.svh(42) @ 4265ns: uvm_test_top.mstr_env.mstr_scb [ADDR_PASS] Address = 0000010 equal Expected Address = 0000010
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4275ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4285ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4295ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4305ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4315ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4325ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4335ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4345ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4355ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4365ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4375ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4385ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4395ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4405ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4415ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4425ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4435ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4445ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4455ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 4465ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_monitor.svh(86) @ 4465ns: uvm_test_top.mstr_env.mstr_agnt.mon [DATA_MATCH_ITEM] the packet while checking the data matching :
+# --------------------------------------------------------------------------
+# Name                       Type                           Size  Value     
+# --------------------------------------------------------------------------
+# item_3                     i2c_master_sequence_item       -     @705      
+#   rst                      integral                       1     'b0       
+#   start                    integral                       1     'b0       
+#   address                  integral                       7     'h0       
+#   address_check            integral                       7     'h0       
+#   rd_wr                    integral                       1     'b0       
+#   din                      integral                       8     'b11011001
+#   data_check               integral                       8     'b11011001
+#   stop                     integral                       1     'b0       
+#   dout                     integral                       8     'h0       
+#   SDA                      integral                       1     'b1       
+#   SCL                      integral                       1     'b1       
+#   state_t                  state_type                     4     IDLE      
+
+---
+
+[Source: sim/log/write1_test_log.log, lines 3401-3460]
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14055ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14065ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14075ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14085ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14095ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14105ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_monitor.svh(69) @ 14105ns: uvm_test_top.mstr_env.mstr_agnt.mon [ADDR_MATCH_ITEM] the packet while checking the address matching :
+# --------------------------------------------------------------------------
+# Name                       Type                           Size  Value     
+# --------------------------------------------------------------------------
+# item_2                     i2c_master_sequence_item       -     @701      
+#   rst                      integral                       1     'b0       
+#   start                    integral                       1     'b0       
+#   address                  integral                       7     'h28      
+#   address_check            integral                       7     'h28      
+#   rd_wr                    integral                       1     'b1       
+#   din                      integral                       8     'b0       
+#   data_check               integral                       8     'b0       
+#   stop                     integral                       1     'b0       
+#   dout                     integral                       8     'h0       
+#   SDA                      integral                       1     'b0       
+#   SCL                      integral                       1     'b1       
+#   state_t                  state_type                     4     IDLE      
+# --------------------------------------------------------------------------
+# UVM_INFO E:/UVM/I2C/i2c_master/tb//i2c_master_scoreboard.svh(42) @ 14105ns: uvm_test_top.mstr_env.mstr_scb [ADDR_PASS] Address = 0101000 equal Expected Address = 0101000
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14115ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14125ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14135ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14145ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14155ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14165ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14175ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14185ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14195ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14205ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14215ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14225ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14235ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14245ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14255ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14265ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14275ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14285ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14295ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 14305ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_monitor.svh(86) @ 14305ns: uvm_test_top.mstr_env.mstr_agnt.mon [DATA_MATCH_ITEM] the packet while checking the data matching :
+# --------------------------------------------------------------------------
+# Name                       Type                           Size  Value     
+# --------------------------------------------------------------------------
+# item_3                     i2c_master_sequence_item       -     @705      
+#   rst                      integral                       1     'b0       
+#   start                    integral                       1     'b0       
+#   address                  integral                       7     'h0       
+#   address_check            integral                       7     'h0       
+#   rd_wr                    integral                       1     'b0       
+#   din                      integral                       8     'b10101111
+#   data_check               integral                       8     'b10101111
+#   stop                     integral                       1     'b0       
+#   dout                     integral                       8     'h0       
+#   SDA                      integral                       1     'b1       
+
+---
+
+[Source: sim/log/write1_test_log.log, lines 3301-3360]
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13625ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13635ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13645ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13655ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13665ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13675ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13685ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13695ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_monitor.svh(69) @ 13695ns: uvm_test_top.mstr_env.mstr_agnt.mon [ADDR_MATCH_ITEM] the packet while checking the address matching :
+# --------------------------------------------------------------------------
+# Name                       Type                           Size  Value     
+# --------------------------------------------------------------------------
+# item_2                     i2c_master_sequence_item       -     @701      
+#   rst                      integral                       1     'b0       
+#   start                    integral                       1     'b0       
+#   address                  integral                       7     'h9       
+#   address_check            integral                       7     'h9       
+#   rd_wr                    integral                       1     'b1       
+#   din                      integral                       8     'b0       
+#   data_check               integral                       8     'b0       
+#   stop                     integral                       1     'b0       
+#   dout                     integral                       8     'h0       
+#   SDA                      integral                       1     'b1       
+#   SCL                      integral                       1     'b1       
+#   state_t                  state_type                     4     IDLE      
+# --------------------------------------------------------------------------
+# UVM_INFO E:/UVM/I2C/i2c_master/tb//i2c_master_scoreboard.svh(42) @ 13695ns: uvm_test_top.mstr_env.mstr_scb [ADDR_PASS] Address = 0001001 equal Expected Address = 0001001
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13705ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13715ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13725ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13735ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13745ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13755ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13765ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13775ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13785ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13795ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13805ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13815ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13825ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13835ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13845ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13855ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13865ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13875ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13885ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_stat_monitor.svh(50) @ 13895ns: uvm_test_top.mstr_env.mstr_agnt.mon2 [STATE_COV_ITEM] the packet while covering the state :
+# UVM_INFO E:/UVM/I2C/i2c_master/tb/i2c_master_agent//i2c_master_monitor.svh(86) @ 13895ns: uvm_test_top.mstr_env.mstr_agnt.mon [DATA_MATCH_ITEM] the packet while checking the data matching :
+# --------------------------------------------------------------------------
+# Name                       Type                           Size  Value     
+# --------------------------------------------------------------------------
+# item_3                     i2c_master_sequence_item       -     @705      
+#   rst                      integral                       1     'b0       
+#   start                    integral                       1     'b0       
+#   address                  integral                       7     'h0       
+#   address_check            integral                       7     'h0       
+#   rd_wr                    integral                       1     'b0       
+#   din                      integral                       8     'b11100011
+#   data_check               integral                       8     'b11100011
+#   stop                     integral                       1     'b0       
+
+QUESTION:
+Explain the complete UVM architecture.

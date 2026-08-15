@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "semrag"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "blake3",
+    "pathspec",
+    "gitpython",
+    "pyslang>=7.0",
+    "pyyaml",
+    "pdfplumber",
+    "openpyxl",
+    "sqlalchemy>=2.0",
+    "alembic",
+    "psycopg2-binary",
+    "pgvector",
+    "neo4j",
+    "scikit-learn",
+    "numpy",
+    "requests",
+    "fastapi",
+    "uvicorn[standard]",
+    "sse-starlette",
+    "redis>=4.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "reportlab", "httpx", "ruff", "black", "mypy", "coverage", "pip-tools", "fakeredis[lua]"]
+
+[project.scripts]
+semrag = "semrag.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = [".venv", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.black]
+line-length = 110
+target-version = ["py311"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = false
+exclude = ["tests/", "build/", "dist/"]

@@ -1,0 +1,112 @@
+{
+  "project_id": "rtl_uvm",
+  "tool": "verilator",
+  "timeout_seconds": 120,
+  "trusted_external_deps": [
+    {
+      "name": "uvm_core",
+      "path": "/home/bikram/projects/uvm-core/src"
+    },
+    {
+      "name": "sv_generated_lint_stubs",
+      "path": "/home/bikram/projects/semrag/configs/validation/stubs/rtl_uvm"
+    }
+  ],
+  "targets": {
+    "rtl_lint": {
+      "description": "Lint the RTL design only (no UVM needed).",
+      "tool_args": ["--lint-only", "-Wno-fatal", "--top-module", "i2c_master"],
+      "incdirs": ["rtl"],
+      "files": ["rtl/i2c_master.sv"],
+      "defines": []
+    },
+    "tb_lint": {
+      "description": "Lint the full UVM testbench + RTL. Requires the UVM library (uvm_pkg / uvm_macros.svh) configured as a trusted external dep.",
+      "tool_args": [
+        "--lint-only",
+        "-Wno-fatal",
+        "--bbox-unsup",
+        "--timing",
+        "--top-module",
+        "i2c_master_top"
+      ],
+      "incdirs": [
+        "tb",
+        "tb/i2c_master_agent",
+        "tb/i2c_master_seq_lib",
+        "tb/i2c_master_test_lib",
+        "rtl",
+        "ext:uvm_core"
+      ],
+      "files": [
+        "ext:uvm_core/uvm_macros.svh",
+        "ext:uvm_core/uvm_pkg.sv",
+        "tb/i2c_master_param_pkg.sv",
+        "tb/i2c_master_agent/i2c_master_agent_pkg.sv",
+        "tb/i2c_master_seq_lib/i2c_master_seq_pkg.sv",
+        "tb/i2c_master_test_lib/i2c_master_test_pkg.sv",
+        "tb/i2c_master_pkg.sv",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_top.sv",
+        "rtl/i2c_master.sv"
+      ],
+      "defines": []
+    },
+    "sv_generated_lint": {
+      "description": "Lint generated SystemVerilog artifacts (read_seq, read_test) against a minimal non-UVM stub harness. Detects basic SV syntax errors in generated files without compiling the UVM library. Uses Verilator only; randomize() with is blackboxed via --bbox-unsup.",
+      "tool_args": [
+        "--lint-only",
+        "--bbox-unsup",
+        "-Wno-fatal",
+        "--timing"
+      ],
+      "incdirs": [
+        "tb/i2c_master_seq_lib",
+        "tb/i2c_master_test_lib",
+        "ext:sv_generated_lint_stubs"
+      ],
+      "files": [
+        "ext:sv_generated_lint_stubs/sv_generated_lint_harness.sv"
+      ],
+      "defines": []
+    },
+    "generated_tb_lint": {
+      "description": "Lint the generated READ testcase and the minimum source set it needs (sequence_item, base_seq, read_seq, agent, base_test). Skips the coverage collector and unrelated components via top-level package filter. Requires the UVM library (uvm_pkg / uvm_macros.svh) configured as a trusted external dep.",
+      "tool_args": [
+        "--lint-only",
+        "-Wno-fatal",
+        "--timing",
+        "--top-module",
+        "i2c_master_top"
+      ],
+      "incdirs": [
+        "tb",
+        "tb/i2c_master_agent",
+        "tb/i2c_master_seq_lib",
+        "tb/i2c_master_test_lib",
+        "rtl",
+        "ext:uvm_core"
+      ],
+      "files": [
+        "ext:uvm_core/uvm_macros.svh",
+        "ext:uvm_core/uvm_pkg.sv",
+        "tb/i2c_master_param_pkg.sv",
+        "tb/i2c_master_sequence_item.svh",
+        "tb/i2c_master_agent/i2c_master_agent_config.svh",
+        "tb/i2c_master_agent/i2c_master_sequencer.svh",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "tb/i2c_master_agent/i2c_master_monitor.svh",
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh",
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "tb/i2c_master_seq_lib/i2c_master_base_seq.svh",
+        "tb/i2c_master_seq_lib/i2c_master_read_seq.svh",
+        "tb/i2c_master_test_lib/i2c_master_base_test.svh",
+        "tb/i2c_master_test_lib/i2c_master_read_test.svh",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_top.sv",
+        "rtl/i2c_master.sv"
+      ],
+      "defines": []
+    }
+  }
+}

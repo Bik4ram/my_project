@@ -1,0 +1,59 @@
+# Alertmanager configuration for SemRAG (Wave 3).
+#
+# Routes alerts to the right channel based on severity, suppresses
+# duplicate alerts that share the same fingerprint, and groups alerts
+# so a single Slack notification doesn't turn into a flood.
+#
+# The `receivers` block is intentionally generic — `default` and
+# `critical` use the same webhook template so an operator can swap
+# the destination without rewriting routing rules. Replace
+# `https://hooks.example.com/semrag` with the actual channel URL.
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: default
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    # Critical alerts get a tighter repeat interval and an immediate
+    # page. The receiver points at the same webhook as `default` today;
+    # in production, route `critical` to PagerDuty / Opsgenie and
+    # `default` / `warning` to Slack.
+    - match_re:
+        severity: critical
+      receiver: critical
+      group_wait: 10s
+      repeat_interval: 1h
+      continue: true
+    - match_re:
+        severity: warning
+      receiver: default
+      group_wait: 1m
+      repeat_interval: 6h
+
+receivers:
+  - name: default
+    webhook_configs:
+      - url: https://hooks.example.com/semrag
+        send_resolved: true
+        max_alerts: 0
+
+  - name: critical
+    webhook_configs:
+      - url: https://hooks.example.com/semrag-critical
+        send_resolved: true
+        max_alerts: 0
+
+# Suppress duplicate alerts when a host-level alert (low disk) and an
+# application-level alert (job backlog) fire for the same underlying
+# cause. The matchers below keep the rule conservative; expand with
+# specific labels once the alert taxonomy stabilises.
+inhibit_rules:
+  - source_match:
+      severity: critical
+    target_match:
+      severity: warning
+    equal: ['alertname']

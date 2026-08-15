@@ -1,0 +1,265 @@
+# SemRAG API deployment.
+#
+# Two replicas by default — one pod serves traffic while the other rolls
+# (RollingUpdate, maxUnavailable=0, maxSurge=1). Probes use /livez for
+# liveness and /readyz for readiness, matching the contracts documented
+# in src/semrag/api/health.py.
+#
+# The API process does NOT run indexing jobs in-process; that runs in
+# the separate semrag-worker deployment. ``SEMRAG_API_RUNS_WORKER=false``
+# disables the in-process worker so API replicas only serve HTTP.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semrag
+  namespace: semrag
+  labels:
+    app.kubernetes.io/name: semrag
+    app.kubernetes.io/component: api
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: semrag
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: semrag
+        app.kubernetes.io/component: api
+      annotations:
+        # Rolling restarts when ConfigMap / Secret content changes.
+        # kubectl rollout restart deployment/semrag -n semrag also works.
+        checksum/config: ""
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      # Spread replicas across nodes; soft anti-affinity so a single-node
+      # dev cluster still schedules both pods.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: semrag
+                    app.kubernetes.io/component: api
+                topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: api
+          image: REPLACE_WITH_IMAGE          # e.g. ghcr.io/your-org/semrag:v0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: SEMRAG_API_RUNS_WORKER
+              value: "false"
+            # Non-secret env from ConfigMap.
+            - name: SEMRAG_DATABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_DATABASE_URL
+            - name: SEMRAG_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_LOG_LEVEL
+            - name: SEMRAG_LOG_FORMAT
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_LOG_FORMAT
+            - name: SEMRAG_LLM_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_LLM_PROVIDER
+            - name: SEMRAG_LLM_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_LLM_MODEL
+            - name: SEMRAG_LLM_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_LLM_BASE_URL
+            - name: SEMRAG_LLM_NUM_PREDICT
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_LLM_NUM_PREDICT
+            - name: SEMRAG_EMBEDDING_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_EMBEDDING_PROVIDER
+            - name: SEMRAG_EMBEDDING_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_EMBEDDING_MODEL
+            - name: SEMRAG_EMBEDDING_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_EMBEDDING_BASE_URL
+            - name: SEMRAG_EMBEDDING_DIMENSION
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_EMBEDDING_DIMENSION
+            - name: SEMRAG_QUERY_CACHE_BACKEND
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_QUERY_CACHE_BACKEND
+            - name: SEMRAG_RATE_LIMIT_BACKEND
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_RATE_LIMIT_BACKEND
+            - name: SEMRAG_ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_ENVIRONMENT
+            - name: SEMRAG_API_KEY_STORE
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_API_KEY_STORE
+            - name: SEMRAG_TRUSTED_HOSTS
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_TRUSTED_HOSTS
+            - name: SEMRAG_CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_CORS_ORIGINS
+            - name: SEMRAG_REJECT_DEV_KEYS_IN_PRODUCTION
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_REJECT_DEV_KEYS_IN_PRODUCTION
+            - name: SEMRAG_MAX_BODY_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_MAX_BODY_SIZE
+            - name: SEMRAG_GIT_COMMIT
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_GIT_COMMIT
+            - name: SEMRAG_BUILD_TIME
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_BUILD_TIME
+            # Interpolated into SEMRAG_DATABASE_URL. Defined separately
+            # so it doesn't conflict with the rest of the ConfigMap.
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: semrag-secrets
+                  key: POSTGRES_PASSWORD
+            # Secret-only env.
+            - name: SEMRAG_API_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: semrag-secrets
+                  key: SEMRAG_API_KEYS
+            - name: SEMRAG_LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: semrag-secrets
+                  key: SEMRAG_LLM_API_KEY
+                  optional: true
+            - name: SEMRAG_EMBEDDING_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: semrag-secrets
+                  key: SEMRAG_EMBEDDING_API_KEY
+                  optional: true
+          envFrom:
+            # Anything not explicitly listed above falls through here.
+            # Keeps the manifest readable; values still come from the
+            # same ConfigMap.
+            - configMapRef:
+                name: semrag-config
+                optional: true
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "1Gi"
+          # Liveness: the process can serve Python. Cheap, no deps.
+          # 5s after startup, then every 10s. Three failures -> restart.
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Readiness: every dependency is up. 10s after startup so the
+          # OLLAMA probe has time to complete, then every 10s. Single
+          # failure removes the pod from Service endpoints.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 1
+          # Startup probe: more forgiving than liveness, gives a slow
+          # first request (e.g. LLM probe) up to 90s to succeed.
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 18
+          lifecycle:
+            preStop:
+              # Sleep 5s then SIGTERM. Lets in-flight requests drain
+              # via uvicorn's graceful shutdown before the kubelet
+              # sends SIGKILL after terminationGracePeriodSeconds.
+              exec:
+                command: ["sh", "-c", "sleep 5"]
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: semrag-data

@@ -1,0 +1,213 @@
+# Default values for the SemRAG Helm chart.
+#
+# Override per-release with `--set key=value` or a custom values.yaml.
+# Anything that's a deployment-level secret is exposed under
+# `existingSecret` so operators can wire to an existing Secret object
+# rather than duplicating credentials in values.
+
+# -- Number of API replicas. Two is a sensible minimum for a
+# RollingUpdate with maxUnavailable=0.
+replicaCount: 2
+
+image:
+  # -- Container image repository.
+  repository: semrag
+  # -- Image tag. Pin to a release tag in production; ":latest" is fine
+  # for ephemeral environments but makes rollbacks harder.
+  tag: "0.1.0"
+  # -- Image pull policy.
+  pullPolicy: IfNotPresent
+
+# -- Image pull secrets. Empty for public registries; populate when the
+# image lives in a private registry (ECR, GHCR private, etc.).
+imagePullSecrets: []
+
+# -- Override the deployment name.
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Whether to create a ServiceAccount.
+  create: true
+  # -- ServiceAccount name. Generated from the release if blank.
+  name: ""
+  # -- Annotations on the ServiceAccount (e.g. for IRSA / Workload
+  # Identity).
+  annotations: {}
+
+# -- Pod-level security context. Run as non-root UID 1001 to match the
+# Dockerfile.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+
+# -- Container-level security context.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  # -- Service type.
+  type: ClusterIP
+  # -- Service port exposed within the cluster.
+  port: 80
+
+# -- Resources for the API container. Requests are small; limits match
+# a single uvicorn worker with headroom for one in-flight LLM call.
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 1Gi
+
+# -- Persistent storage for the embedding cache and debug artifacts.
+# Bounded small by default; raise if you've increased retention.
+persistence:
+  enabled: true
+  size: 1Gi
+  # -- Storage class. Empty -> cluster default.
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  mountPath: /app/data
+
+# -- Liveness/readiness/startup probe overrides.
+probes:
+  liveness:
+    path: /livez
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readiness:
+    path: /readyz
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 1
+  startup:
+    path: /livez
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 18
+
+# -- pod.spec.terminationGracePeriodSeconds. Should be >= preStop sleep.
+terminationGracePeriodSeconds: 30
+
+# -- Ingress. Disabled by default — flip to true when a controller is
+# installed.
+ingress:
+  enabled: false
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 8m
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+  hosts:
+    - host: semrag.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# -- Existing Secret containing POSTGRES_PASSWORD, SEMRAG_API_KEYS, and
+# the optional API keys. Create the Secret separately (SealedSecret,
+# ExternalSecret, etc.) and reference it here.
+existingSecret: ""
+# -- When existingSecret is empty, the chart expects these values to
+# be set. They're exposed only so `helm template` produces a complete
+# output; in real installs the Secret is created out-of-band.
+secret:
+  POSTGRES_PASSWORD: "REPLACE_ME"
+  SEMRAG_API_KEYS: "REPLACE_ME"
+  SEMRAG_LLM_API_KEY: ""
+  SEMRAG_EMBEDDING_API_KEY: ""
+
+# -- Application configuration. Anything in here lands in the
+# ConfigMap as SEMRAG_<KEY>=<value>. The deployment then exposes it as
+# an env var. Mirrors .env.example exactly so the operator can copy
+# values across.
+config:
+  # Database URL is built from existingSecret.POSTGRES_PASSWORD below;
+  # this is the template, the password is interpolated by the chart.
+  databaseUrlTemplate: "postgresql+psycopg2://semrag:$(POSTGRES_PASSWORD)@postgres:5432/semrag"
+
+  environment: production
+  logLevel: INFO
+  logFormat: json
+
+  llm:
+    provider: ollama
+    model: qwen2.5:7b
+    baseUrl: http://ollama:11434
+    numPredict: 800
+
+  embedding:
+    provider: ollama
+    model: nomic-embed-text
+    baseUrl: http://ollama:11434
+    dimension: 768
+
+  queryCacheBackend: memory
+  rateLimitBackend: memory
+
+  trustedHosts: ""
+  corsOrigins: ""
+  rejectDevKeysInProduction: true
+  maxBodySize: 5242880
+
+  gitCommit: ""
+  buildTime: ""
+
+# -- Soft pod anti-affinity. Prevents both replicas landing on the same
+# node. Set to "hard" if your cluster tolerates unscheduled pods
+# when only one node is up.
+antiAffinity: soft
+
+# -- Horizontal Pod Autoscaler. Disabled by default — set enabled: true
+# to opt in. Requires metrics-server or a custom metrics API.
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# -- Worker process configuration. The worker polls the persistent job
+# store and runs the indexing pipeline; the API process does not run
+# jobs in-process anymore.
+worker:
+  # -- Number of worker replicas. One is sufficient for most workloads;
+  # scale up for large corpora.
+  replicaCount: 1
+  # -- Resources for the worker container. Indexing is more memory-
+  # hungry than serving HTTP — bump memory for large projects.
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "4"
+      memory: 4Gi
+  terminationGracePeriodSeconds: 60
+  podAnnotations: {}
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# -- Common labels applied to every resource.
+labels: {}
+
+# -- Annotations applied to the pod template.
+podAnnotations: {}

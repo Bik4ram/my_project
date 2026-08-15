@@ -1,0 +1,11 @@
+/home/bikram/projects/semrag/.semrag/debug/1785312706339-193df5/prompt/final_prompt.txt
+/home/bikram/projects/semrag/.semrag/debug/1785312810249-af22ba/prompt/final_prompt.txt
+/home/bikram/projects/semrag/.semrag/debug/1785316656082-87f52e/prompt/final_prompt.txt
+/home/bikram/projects/semrag/AGENTS.md
+/home/bikram/projects/semrag/ARCHITECTURE.md
+/home/bikram/projects/semrag/CHANGELOG.md
+/home/bikram/projects/semrag/CLAUDE.md
+/home/bikram/projects/semrag/README.md
+/home/bikram/projects/semrag/RUN_API.md
+/home/bikram/projects/semrag/SETUP_POSTGRES.md
+/home/bikram/projects/semrag/src/semrag/ingestion/parsers/systemverilog/README.md

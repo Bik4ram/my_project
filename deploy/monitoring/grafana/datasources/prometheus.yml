@@ -1,0 +1,17 @@
+# Grafana datasource provisioning for SemRAG (Wave 3).
+#
+# Picked up by the Grafana sidecar / provisioning directory. The
+# datasource is read-only; users can build dashboards on top but the
+# underlying Prometheus URL is fixed.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
+      httpMethod: POST

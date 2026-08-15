@@ -1,0 +1,22 @@
+# PersistentVolumeClaim for runtime caches that should survive pod
+# restarts: embedding cache (jsonfile backend) and the debug-artifact
+# directory. Sized small — both are bounded by Settings defaults; tune
+# if you've raised SEMRAG_DEBUG_ARTIFACT_RETENTION or the cache TTL.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: semrag-data
+  namespace: semrag
+  labels:
+    app.kubernetes.io/name: semrag
+    app.kubernetes.io/component: storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  # storageClassName is left empty so the cluster default applies.
+  # Set explicitly (e.g. "standard" or "gp3") if your cluster requires
+  # it.

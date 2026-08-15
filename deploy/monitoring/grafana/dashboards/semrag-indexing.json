@@ -1,0 +1,93 @@
+{
+  "annotations": { "list": [] },
+  "description": "Wave 3 — Indexing job queue, throughput, duration, and failures.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Jobs queued vs completed (per minute)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(semrag_indexing_jobs_queued_total[5m])) * 60",
+          "legendFormat": "queued",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(semrag_indexing_jobs_completed_total[5m])) * 60",
+          "legendFormat": "completed",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(semrag_indexing_jobs_failed_total[5m])) * 60",
+          "legendFormat": "failed",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "s" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "title": "Indexing duration P95",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (project_id, le) (rate(semrag_indexing_duration_seconds_bucket[10m])))",
+          "legendFormat": "{{project_id}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "title": "Files / chunks processed",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(semrag_indexing_files_processed_total[5m])) by (project_id)",
+          "legendFormat": "files {{project_id}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(semrag_indexing_chunks_generated_total[5m])) by (project_id)",
+          "legendFormat": "chunks gen {{project_id}}",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(semrag_indexing_chunks_embedded_total[5m])) by (project_id)",
+          "legendFormat": "chunks emb {{project_id}}",
+          "refId": "C"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["semrag", "indexing", "wave3"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "SemRAG — Indexing",
+  "uid": "semrag-indexing",
+  "version": 1,
+  "weekStart": ""
+}

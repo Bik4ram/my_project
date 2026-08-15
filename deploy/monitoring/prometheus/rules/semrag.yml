@@ -1,0 +1,242 @@
+groups:
+  # ---------------------------------------------------------------------
+  # Latency alerts — flag slow HTTP responses and slow LLM / embedding
+  # roundtrips before users notice.
+  # ---------------------------------------------------------------------
+  - name: semrag-latency
+    interval: 30s
+    rules:
+      - alert: SemRAGHighRequestLatencyP95
+        # P95 latency over the 5-minute window exceeds 5 seconds. This
+        # covers most production paths; the /v1/projects/.../answer
+        # endpoint legitimately exceeds this on complex queries, so
+        # we don't escalate immediately — page only after 5 minutes.
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (path, le) (rate(semrag_http_request_duration_seconds_bucket[5m]))
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "SemRAG P95 HTTP latency above 5s"
+          description: "Path {{ $labels.path }} P95 latency is {{ $value }}s over the last 5 minutes."
+
+      - alert: SemRAGHighLLMLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (provider, model, le) (rate(semrag_rag_llm_duration_seconds_bucket[5m]))
+          ) > 60
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "SemRAG LLM P95 latency above 60s"
+          description: "Provider {{ $labels.provider }}/{{ $labels.model }} P95 is {{ $value }}s. Check provider status."
+
+      - alert: SemRAGHighEmbeddingLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (provider, le) (rate(semrag_rag_embedding_duration_seconds_bucket[5m]))
+          ) > 30
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "SemRAG embedding P95 latency above 30s"
+          description: "Provider {{ $labels.provider }} P95 is {{ $value }}s. Likely a model warmup issue or a slow embedding server."
+
+  # ---------------------------------------------------------------------
+  # Error rate alerts — failed requests and failed jobs.
+  # ---------------------------------------------------------------------
+  - name: semrag-errors
+    interval: 30s
+    rules:
+      - alert: SemRAGHighErrorRate
+        # >5% of requests returning 5xx over 5 minutes. Path-level
+        # labels let the operator pivot to a specific failing endpoint.
+        expr: |
+          sum by (path) (rate(semrag_http_requests_total{status=~"5.."}[5m]))
+            /
+          sum by (path) (rate(semrag_http_requests_total[5m]))
+            > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "SemRAG 5xx rate above 5% on {{ $labels.path }}"
+          description: "Error rate is {{ $value | humanizePercentage }} — check the service logs."
+
+      - alert: SemRAGIndexingJobsFailing
+        # Three or more indexing jobs failed in the last 15 minutes.
+        # A single failure is expected; a burst suggests a real bug
+        # or a downstream outage (Postgres, embedding server).
+        expr: sum(rate(semrag_indexing_jobs_failed_total[15m])) * 900 > 3
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "SemRAG indexing job failure rate elevated"
+          description: "{{ $value }} jobs failed in the last 15 minutes."
+
+  # ---------------------------------------------------------------------
+  # Component health alerts — mirrors the /readyz verdict into Prometheus.
+  # ---------------------------------------------------------------------
+  - name: semrag-health
+    interval: 30s
+    rules:
+      - alert: SemRAGDatabaseUnavailable
+        expr: semrag_health_up{component="database"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "SemRAG database health probe failing"
+          description: "/readyz reports the database is unreachable. Investigate Postgres."
+
+      - alert: SemRAGLLMUnavailable
+        expr: semrag_health_up{component="llm"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "SemRAG LLM provider health probe failing"
+          description: "/readyz reports the LLM provider is unreachable. Verify the LLM endpoint and credentials."
+
+      - alert: SemRAGEmbeddingUnavailable
+        expr: semrag_health_up{component="embedding"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "SemRAG embedding provider health probe failing"
+          description: "/readyz reports the embedding provider is unreachable."
+
+      - alert: SemRAGJobExecutorDown
+        expr: semrag_health_up{component="job_executor"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "SemRAG job executor not accepting work"
+          description: "Background indexing is not being processed. Check pod lifecycle and OOMKills."
+
+  # ---------------------------------------------------------------------
+  # Cache & rate-limit alerts.
+  # ---------------------------------------------------------------------
+  - name: semrag-cache
+    interval: 30s
+    rules:
+      - alert: SemRAGCacheHitRateLow
+        # <30% hit rate over 15 minutes suggests the cache TTL is too
+        # short, or the cache is being invalidated too aggressively.
+        expr: |
+          sum(rate(semrag_cache_hits_total[15m]))
+            /
+          (sum(rate(semrag_cache_hits_total[15m])) + sum(rate(semrag_cache_misses_total[15m])))
+            < 0.3
+        for: 15m
+        labels:
+          severity: info
+          team: platform
+        annotations:
+          summary: "SemRAG cache hit rate below 30%"
+          description: "Hit rate {{ $value | humanizePercentage }}. Consider raising TTL or reviewing invalidation triggers."
+
+      - alert: SemRAGRateLimiterSaturation
+        # >25% of requests being rejected is a saturation signal — the
+        # API is rejecting user traffic, either legitimately (clients
+        # over-spending budget) or because the limit is too tight.
+        expr: |
+          sum(rate(semrag_rate_limit_rejected_total[5m]))
+            /
+          (sum(rate(semrag_rate_limit_accepted_total[5m])) + sum(rate(semrag_rate_limit_rejected_total[5m])))
+            > 0.25
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "SemRAG rate limiter rejecting >25% of traffic"
+          description: "Rejection rate is {{ $value | humanizePercentage }}. Check client traffic shape vs rate_limit_per_minute."
+
+  # ---------------------------------------------------------------------
+  # Worker & job health.
+  # ---------------------------------------------------------------------
+  - name: semrag-workers
+    interval: 30s
+    rules:
+      - alert: SemRAGWorkerCrash
+        # Process uptime resetting every minute is a strong signal
+        # that the worker pod is crashlooping — usually OOMKill or
+        # a bad config rolled out.
+        expr: changes(semrag_uptime_seconds[1m]) > 0
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "SemRAG worker process restarted"
+          description: "Uptime counter reset within the last minute; the worker process restarted."
+
+      - alert: SemRAGIndexingJobBacklog
+        # Jobs queued faster than they complete for >15 minutes →
+        # backlog is forming. Read as: "queue rate > completion rate"
+        # over a sustained window.
+        expr: |
+          sum(rate(semrag_indexing_jobs_queued_total[15m]))
+            >
+          sum(rate(semrag_indexing_jobs_completed_total[15m])) * 1.2
+        for: 15m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "SemRAG indexing jobs queued faster than completed"
+          description: "Backlog growing. Check worker concurrency and embedding latency."
+
+  # ---------------------------------------------------------------------
+  # Host-level alerts (require node_exporter or similar). These are
+  # intentionally generic so any environment with node_exporter scraped
+  # alongside SemRAG inherits them.
+  # ---------------------------------------------------------------------
+  - name: semrag-host
+    interval: 30s
+    rules:
+      - alert: SemRAGLowDiskSpace
+        # <15% disk free on the data volume — about 24 hours of
+        # indexing traces + Postgres WAL at typical write rates.
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/"}
+            / node_filesystem_size_bytes{mountpoint="/"}) < 0.15
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "SemRAG host disk almost full"
+          description: "Only {{ $value | humanizePercentage }} free on /; rotate logs and clear debug artifacts."
+
+      - alert: SemRAGHighMemoryUsage
+        # >85% memory in use for 10 minutes — close to the kubelet's
+        # typical eviction threshold. Page before eviction kicks in.
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "SemRAG host memory usage above 85%"
+          description: "Memory pressure is rising; consider scaling the pod or reducing concurrency."

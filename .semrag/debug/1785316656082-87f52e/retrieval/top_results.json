@@ -1,0 +1,65 @@
+[
+  {
+    "chunk_id": "rtl_uvm::sim/log/write1_test_log.log::generic_window::21",
+    "relative_path": "sim/log/write1_test_log.log",
+    "line_start": 1051,
+    "line_end": 1110,
+    "fused_score": 0.020833333333333332
+  },
+  {
+    "chunk_id": "rtl_uvm::sim/log/write1_test_log.log::generic_window::68",
+    "relative_path": "sim/log/write1_test_log.log",
+    "line_start": 3401,
+    "line_end": 3460,
+    "fused_score": 0.02040816326530612
+  },
+  {
+    "chunk_id": "rtl_uvm::sim/log/write1_test_log.log::generic_window::66",
+    "relative_path": "sim/log/write1_test_log.log",
+    "line_start": 3301,
+    "line_end": 3360,
+    "fused_score": 0.02
+  },
+  {
+    "chunk_id": "rtl_uvm::sim/log/write1_test_log.log::generic_window::17",
+    "relative_path": "sim/log/write1_test_log.log",
+    "line_start": 851,
+    "line_end": 910,
+    "fused_score": 0.02
+  },
+  {
+    "chunk_id": "rtl_uvm::sim/log/write2_test_log.log::generic_window::21",
+    "relative_path": "sim/log/write2_test_log.log",
+    "line_start": 1051,
+    "line_end": 1110,
+    "fused_score": 0.020618556701030927
+  },
+  {
+    "chunk_id": "rtl_uvm::sim/log/write2_test_log.log::generic_window::70",
+    "relative_path": "sim/log/write2_test_log.log",
+    "line_start": 3501,
+    "line_end": 3560,
+    "fused_score": 0.020618556701030927
+  },
+  {
+    "chunk_id": "rtl_uvm::sim/log/write2_test_log.log::generic_window::17",
+    "relative_path": "sim/log/write2_test_log.log",
+    "line_start": 851,
+    "line_end": 910,
+    "fused_score": 0.019801980198019802
+  },
+  {
+    "chunk_id": "rtl_uvm::sim/log/write2_test_log.log::generic_window::66",
+    "relative_path": "sim/log/write2_test_log.log",
+    "line_start": 3301,
+    "line_end": 3360,
+    "fused_score": 0.019801980198019802
+  },
+  {
+    "chunk_id": "rtl_uvm::sim/log/write2_test_log.log::generic_window::15",
+    "relative_path": "sim/log/write2_test_log.log",
+    "line_start": 751,
+    "line_end": 810,
+    "fused_score": 0.0196078431372549
+  }
+]

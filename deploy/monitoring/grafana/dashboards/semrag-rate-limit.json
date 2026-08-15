@@ -1,0 +1,61 @@
+{
+  "annotations": { "list": [] },
+  "description": "Wave 3 — Rate limiter accepted / rejected traffic.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "reqps" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Rate-limit decisions / sec",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(semrag_rate_limit_accepted_total[5m])",
+          "legendFormat": "accepted",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(semrag_rate_limit_rejected_total[5m])",
+          "legendFormat": "rejected",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "percentunit" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "title": "Rejection rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(semrag_rate_limit_rejected_total[5m]) / (rate(semrag_rate_limit_accepted_total[5m]) + rate(semrag_rate_limit_rejected_total[5m]))",
+          "legendFormat": "rejected %",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["semrag", "rate-limit", "wave3"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "SemRAG — Rate Limiter",
+  "uid": "semrag-rate-limit",
+  "version": 1,
+  "weekStart": ""
+}

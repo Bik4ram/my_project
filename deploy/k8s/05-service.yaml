@@ -1,0 +1,25 @@
+# ClusterIP service. Fronts the API pods for in-cluster traffic and is
+# the upstream for the Ingress. External traffic should reach the
+# Ingress, not the Service directly.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: semrag
+  namespace: semrag
+  labels:
+    app.kubernetes.io/name: semrag
+    app.kubernetes.io/component: api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: semrag
+    app.kubernetes.io/component: api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  # publishNotReadyAddresses: false so kube-proxy / Ingress stops
+  # routing to a pod whose readiness probe fails. This is the default;
+  # made explicit so a future operator knows it's intentional.

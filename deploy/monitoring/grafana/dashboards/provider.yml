@@ -1,0 +1,17 @@
+# Grafana dashboard provisioning for SemRAG (Wave 3).
+#
+# The dashboards/*.json files in this directory are loaded into
+# Grafana on startup. Adding a dashboard is two steps: drop the JSON
+# into `dashboards/`, then reference it below.
+apiVersion: 1
+
+providers:
+  - name: 'semrag'
+    orgId: 1
+    folder: 'SemRAG'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards

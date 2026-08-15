@@ -1,0 +1,48 @@
+# Keep image small — only ship what the runtime needs
+.git
+.gitignore
+.github
+.gitattributes
+.opencode
+.graphify-out
+
+# Dev artifacts
+.venv
+venv
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+.coverage.*
+coverage.xml
+htmlcov
+.cache
+.tox
+
+# Project runtime caches (bind-mount or external volume instead)
+.semrag
+.embedding_cache
+benchmark_results
+
+# Build / packaging artifacts
+build
+dist
+*.egg-info
+
+# Editor / IDE
+.idea
+.vscode
+.DS_Store
+
+# Docs not needed in the image
+*.md
+docs/
+
+# Tests not needed in the runtime image
+tests/
+
+# Local config / secrets
+.env
+.env.*
+*.pem
+*.key

@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -sS http://localhost:11434/api/version)",
+      "Bash(curl -sS -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:11434/v1/chat/completions -X POST -H 'content-type: application/json' -d '{\"model\":\"qwen2.5\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}')",
+      "Bash(curl -sS http://localhost:11434/api/tags)",
+      "Bash(curl -sS -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:11434/v1/chat/completions)",
+      "Bash(curl -sS http://localhost:11434/)",
+      "Bash(curl -sS http://localhost:11434/v1/models)",
+      "Bash(python *)",
+      "Read(//home/bikram/**)",
+      "Bash(find / -maxdepth 6 -name \"rtl_uvm\" -type d)",
+      "Bash(ollama list *)",
+      "Bash(kill 247276)",
+      "Read(//tmp/**)",
+      "Bash(curl -s http://127.0.0.1:8000/health)"
+    ]
+  }
+}

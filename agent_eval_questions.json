@@ -1,0 +1,100 @@
+[
+  {
+    "id": "Q01",
+    "category": "symbol_lookup",
+    "question": "What is the name of the I2C master driver class?",
+    "expected": "i2c_master_driver",
+    "expected_files": [
+      "tb/i2c_master_agent/i2c_master_driver.svh"
+    ]
+  },
+  {
+    "id": "Q02",
+    "category": "symbol_lookup",
+    "question": "What class does i2c_master_sequencer extend?",
+    "expected": "uvm_sequencer #(i2c_master_sequence_item)",
+    "expected_files": [
+      "tb/i2c_master_agent/i2c_master_sequencer.svh"
+    ]
+  },
+  {
+    "id": "Q03",
+    "category": "exact_source",
+    "question": "What connection connects the I2C driver to the sequencer?",
+    "expected": "drv.seq_item_port.connect(sqr.seq_item_export);",
+    "expected_files": [
+      "tb/i2c_master_agent/i2c_master_agent.svh"
+    ]
+  },
+  {
+    "id": "Q04",
+    "category": "exact_source",
+    "question": "What does i2c_master_driver::run_phase() do with the sequence item?",
+    "expected": "get_next_item -> drive -> item_done",
+    "expected_files": [
+      "tb/i2c_master_agent/i2c_master_driver.svh"
+    ]
+  },
+  {
+    "id": "Q05",
+    "category": "uvm_connectivity",
+    "question": "How is the I2C monitor connected to the agent?",
+    "expected": "monitor analysis ports connect to agent analysis ports",
+    "expected_files": [
+      "tb/i2c_master_agent/i2c_master_agent.svh",
+      "tb/i2c_master_agent/i2c_master_monitor.svh"
+    ]
+  },
+  {
+    "id": "Q06",
+    "category": "multi_file_reasoning",
+    "question": "Explain the transaction flow from the I2C sequence to the driver and then to the DUT.",
+    "expected": "sequence -> sequencer -> driver -> drive() -> DUT interface",
+    "expected_files": [
+      "tb/i2c_master_agent/i2c_master_sequencer.svh",
+      "tb/i2c_master_agent/i2c_master_driver.svh",
+      "tb/i2c_master_agent/i2c_master_if.sv"
+    ]
+  },
+  {
+    "id": "Q07",
+    "category": "multi_file_reasoning",
+    "question": "Explain how the monitor's observed transaction reaches downstream verification components.",
+    "expected": "monitor -> agent analysis ports -> downstream consumers",
+    "expected_files": [
+      "tb/i2c_master_agent/i2c_master_monitor.svh",
+      "tb/i2c_master_agent/i2c_master_agent.svh",
+      "tb/i2c_master_environment.svh"
+    ]
+  },
+  {
+    "id": "Q08",
+    "category": "project_understanding",
+    "question": "How many testbench UVM files are present in the rtl_uvm project?",
+    "expected": "24",
+    "expected_files": []
+  },
+  {
+    "id": "Q09",
+    "category": "rtl_tb_reasoning",
+    "question": "What interface does the I2C master driver use to drive the DUT?",
+    "expected": "i2c_master_if",
+    "expected_files": [
+      "tb/i2c_master_agent/i2c_master_driver.svh",
+      "tb/i2c_master_agent/i2c_master_if.sv"
+    ]
+  },
+  {
+    "id": "Q10",
+    "category": "architecture_reasoning",
+    "question": "Describe the relationship between the I2C master agent, sequencer, driver, monitor and scoreboard.",
+    "expected": "multi-component UVM architecture explanation",
+    "expected_files": [
+      "tb/i2c_master_agent/i2c_master_agent.svh",
+      "tb/i2c_master_agent/i2c_master_sequencer.svh",
+      "tb/i2c_master_agent/i2c_master_driver.svh",
+      "tb/i2c_master_agent/i2c_master_monitor.svh",
+      "tb/i2c_master_scoreboard.svh"
+    ]
+  }
+]

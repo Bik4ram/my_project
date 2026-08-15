@@ -1,0 +1,22 @@
+# SemRAG Kubernetes manifests.
+#
+# Apply with:
+#   kubectl apply -f deploy/k8s/
+#
+# Order matters: namespace -> configmap -> secret -> pvc -> deployment ->
+# service -> ingress. Filenames are zero-prefixed so `kubectl apply -f .`
+# applies them in the right order.
+#
+# Configuration is fully env-var-driven. The ConfigMap holds
+# non-secret knobs (log level, base URLs for in-cluster services); the
+# Secret holds the database password and API keys. Override per-cluster
+# with Kustomize or by editing the secret after first install.
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: semrag
+  labels:
+    app.kubernetes.io/name: semrag
+    app.kubernetes.io/part-of: semrag

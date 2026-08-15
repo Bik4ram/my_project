@@ -1,0 +1,33 @@
+Metadata-Version: 2.4
+Name: semrag
+Version: 0.1.0
+Requires-Python: >=3.11
+Requires-Dist: pydantic>=2.0
+Requires-Dist: pydantic-settings>=2.0
+Requires-Dist: blake3
+Requires-Dist: pathspec
+Requires-Dist: gitpython
+Requires-Dist: pyslang>=7.0
+Requires-Dist: pyyaml
+Requires-Dist: pdfplumber
+Requires-Dist: openpyxl
+Requires-Dist: sqlalchemy>=2.0
+Requires-Dist: alembic
+Requires-Dist: psycopg2-binary
+Requires-Dist: pgvector
+Requires-Dist: neo4j
+Requires-Dist: scikit-learn
+Requires-Dist: numpy
+Requires-Dist: requests
+Requires-Dist: fastapi
+Requires-Dist: uvicorn[standard]
+Requires-Dist: sse-starlette
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: reportlab; extra == "dev"
+Requires-Dist: httpx; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+Requires-Dist: black; extra == "dev"
+Requires-Dist: mypy; extra == "dev"
+Requires-Dist: coverage; extra == "dev"
+Requires-Dist: pip-tools; extra == "dev"

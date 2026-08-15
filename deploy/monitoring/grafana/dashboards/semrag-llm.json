@@ -1,0 +1,61 @@
+{
+  "annotations": { "list": [] },
+  "description": "Wave 3 — LLM provider latency, throughput, and error rate.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "s" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "LLM call latency P95",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (provider, model, le) (rate(semrag_rag_llm_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{provider}}/{{model}} P95",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.5, sum by (provider, model, le) (rate(semrag_rag_llm_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{provider}}/{{model}} P50",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "reqps" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "title": "LLM throughput (calls/s)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(semrag_rag_llm_duration_seconds_count[5m])) by (provider, model)",
+          "legendFormat": "{{provider}}/{{model}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["semrag", "llm", "wave3"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "SemRAG — LLM",
+  "uid": "semrag-llm",
+  "version": 1,
+  "weekStart": ""
+}

@@ -1,0 +1,138 @@
+# SemRAG worker deployment.
+#
+# Runs the indexing pipeline against the persistent job store. The API
+# process no longer executes jobs in-process — it only persists a Job
+# row in QUEUED state and returns. This deployment picks them up.
+#
+# One worker replica is enough for most workloads; scale horizontally
+# for large corpora (each worker is single-threaded inside the indexing
+# pipeline). Workers do NOT expose HTTP traffic, so the container
+# command is `python -m semrag.worker` instead of the uvicorn entrypoint.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semrag-worker
+  namespace: semrag
+  labels:
+    app.kubernetes.io/name: semrag
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: semrag
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: semrag
+        app.kubernetes.io/component: worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: worker
+          image: REPLACE_WITH_IMAGE
+          imagePullPolicy: IfNotPresent
+          # No HTTP port — workers do not serve traffic. They poll the
+          # Postgres job store and run the indexing pipeline. The
+          # liveness/readiness probes here are operational book-keeping
+          # only; if the worker crashes, k8s restarts it.
+          command: ["python", "-m", "semrag.worker"]
+          env:
+            - name: SEMRAG_API_RUNS_WORKER
+              value: "false"
+            - name: SEMRAG_JOB_STORE_BACKEND
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_JOB_STORE_BACKEND
+                  optional: true
+            - name: SEMRAG_REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_REDIS_URL
+                  optional: true
+            - name: SEMRAG_WORKER_POLL_INTERVAL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: semrag-config
+                  key: SEMRAG_WORKER_POLL_INTERVAL_SECONDS
+                  optional: true
+            - name: SEMRAG_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: semrag-secrets
+                  key: SEMRAG_DATABASE_URL
+                  optional: true
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: semrag-secrets
+                  key: POSTGRES_PASSWORD
+            - name: SEMRAG_LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: semrag-secrets
+                  key: SEMRAG_LLM_API_KEY
+                  optional: true
+            - name: SEMRAG_EMBEDDING_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: semrag-secrets
+                  key: SEMRAG_EMBEDDING_API_KEY
+                  optional: true
+          envFrom:
+            - configMapRef:
+                name: semrag-config
+                optional: true
+          resources:
+            # Indexing is more memory-hungry than serving HTTP. A
+            # typical large project pegs at 1-2 GiB during embedding;
+            # this leaves headroom for parser pipelines.
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "4"
+              memory: "4Gi"
+          livenessProbe:
+            # Workers don't expose HTTP; the liveness signal here is
+            # the process being alive at all. exec cat is enough — the
+            # kubelet just needs to know the container hasn't segfaulted.
+            exec:
+              command: ["sh", "-c", "test -d /proc/1"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              # Give the worker loop a chance to drain the in-flight
+              # job before SIGTERM cuts it off mid-write.
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: semrag-data

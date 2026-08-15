@@ -1,0 +1,38 @@
+# Ingress. Single host, single path, NGINX-style annotations. Operators
+# on GKE / AKS / EKS should swap the ingressClassName for their
+# provider's preferred controller (e.g. "gce" or "alb").
+#
+# TLS is disabled in this template — the cluster operator must provide
+# cert-manager, a sealed-secret, or pre-baked certs. The tls stanza is
+# commented so the operator knows where it goes.
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: semrag
+  namespace: semrag
+  labels:
+    app.kubernetes.io/name: semrag
+    app.kubernetes.io/component: ingress
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "8m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+    # Larger client-body-buffer so chunked uploads don't 413 mid-stream.
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: semrag.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: semrag
+                port:
+                  number: 80
+  # tls:
+  #   - hosts:
+  #       - semrag.example.com
+  #     secretName: semrag-tls

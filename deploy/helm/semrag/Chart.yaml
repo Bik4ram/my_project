@@ -1,0 +1,21 @@
+apiVersion: v2
+name: semrag
+description: |
+  Production-grade Helm chart for the SemRAG API. Configures the
+  deployment, service, ingress, persistent storage, probes, and
+  resources. Secrets are NOT created automatically — the operator must
+  provide them out-of-band (SealedSecret, ExternalSecret, or a manual
+  `helm template | kubectl apply -f -` after editing values.yaml).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - semrag
+  - rag
+  - retrieval
+  - llm
+home: https://example.invalid/semrag
+sources:
+  - https://example.invalid/semrag
+maintainers:
+  - name: SemRAG maintainers

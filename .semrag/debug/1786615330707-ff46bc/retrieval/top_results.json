@@ -1,0 +1,58 @@
+[
+  {
+    "chunk_id": "rtl_uvm::rtl/i2c_master.sv::sv_module_signature::i2c_master",
+    "relative_path": "rtl/i2c_master.sv",
+    "line_start": 8,
+    "line_end": 25,
+    "fused_score": 0.04310421545667447
+  },
+  {
+    "chunk_id": "rtl_uvm::tb/i2c_master_top.sv::sv_module::i2c_master_top",
+    "relative_path": "tb/i2c_master_top.sv",
+    "line_start": 12,
+    "line_end": 47,
+    "fused_score": 0.042412960050330295
+  },
+  {
+    "chunk_id": "rtl_uvm::tb/i2c_master_agent/i2c_master_stat_monitor.svh::generic_window::0",
+    "relative_path": "tb/i2c_master_agent/i2c_master_stat_monitor.svh",
+    "line_start": 1,
+    "line_end": 56,
+    "fused_score": 0.033980823572032366
+  },
+  {
+    "chunk_id": "rtl_uvm::tb/i2c_master_agent/i2c_master_agent.svh::generic_window::0",
+    "relative_path": "tb/i2c_master_agent/i2c_master_agent.svh",
+    "line_start": 1,
+    "line_end": 60,
+    "fused_score": 0.03393963120314968
+  },
+  {
+    "chunk_id": "rtl_uvm::tb/i2c_master_agent/i2c_master_monitor.svh::generic_window::0",
+    "relative_path": "tb/i2c_master_agent/i2c_master_monitor.svh",
+    "line_start": 1,
+    "line_end": 60,
+    "fused_score": 0.03389315313017978
+  },
+  {
+    "chunk_id": "rtl_uvm::tb/i2c_master_agent/i2c_master_driver.svh::generic_window::0",
+    "relative_path": "tb/i2c_master_agent/i2c_master_driver.svh",
+    "line_start": 1,
+    "line_end": 60,
+    "fused_score": 0.03043581081081082
+  },
+  {
+    "chunk_id": "rtl_uvm::tb/i2c_master_environment.svh::generic_window::0",
+    "relative_path": "tb/i2c_master_environment.svh",
+    "line_start": 1,
+    "line_end": 60,
+    "fused_score": 0.030307686544800726
+  },
+  {
+    "chunk_id": "rtl_uvm::README.md::markdown_section::0",
+    "relative_path": "README.md",
+    "line_start": 1,
+    "line_end": 11,
+    "fused_score": 0.016854166666666667
+  }
+]

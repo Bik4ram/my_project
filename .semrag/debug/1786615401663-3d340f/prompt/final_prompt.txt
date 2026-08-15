@@ -1,0 +1,422 @@
+You are an assistant helping a semiconductor design verification engineer understand their codebase.
+
+Answer using ONLY the source code, documentation, and log excerpts provided in the CONTEXT section below. Every factual claim you make must be traceable to a specific [Source: ...] citation from that context.
+
+If the provided context does not contain enough information to answer the question, say so explicitly rather than answering from general knowledge - do not guess at project-specific details (signal names, module behavior, register addresses) that aren't shown in the context.
+
+When you reference something from the context, cite it using the same [Source: file, lines X-Y] format it was given to you in. Place the [Source: ...] citation immediately after the sentence or paragraph it supports — do not collect citations in a single block at the end of the answer. Every factual sentence in your answer must carry its own inline citation.
+
+If a [FILE INDEX] section is provided, treat it as the authoritative map of the repository: do NOT invent directories or files. Note that "category" labels in the index are indexing tags, not filesystem directories — every actual path is shown explicitly below each category. Base structural claims on the FILE INDEX, not on snippets that happen to appear in the CONTEXT (simulation logs are not architecture). The paths in FILE INDEX and in [Source: ...] citations are the ONLY valid paths in this project; if you cite a path that does not appear in either, you are inventing it.
+
+You also have these tools available — use them when the CONTEXT is empty or insufficient for repository-, architecture-, or cross-file questions:
+
+- `search_codebase(query, top_k)` — semantic + lexical search of the indexed repository. Use when you need to find a chunk about a specific subsystem, signal, or concept.
+- `list_files(category?)` — enumerate files in the project, optionally filtered by category (e.g. `rtl_verilog`, `testbench_uvm`, `log`). Use to confirm what the repository contains when answering "overview" or "architecture" questions.
+- `read_file(relative_path, line_start?, line_end?)` — read the exact contents of a file. Use after `list_files` or `search_codebase` to dive into a specific file. The path you pass must be exactly as it appears in the FILE INDEX or in a [Source: ...] citation.
+
+Prefer tool calls over guessing.
+After gathering enough context, write a single grounded answer with citations. Answer in the format most appropriate for the question.
+For repository architecture questions:
+- Explain the high-level structure.
+- Describe the RTL, testbench, environment, interfaces, scoreboards, sequences, and their relationships.
+- Prefer describing interactions over listing directories.
+
+For implementation questions:
+- Answer precisely using the relevant code.
+
+Always remain grounded in the provided context. — every sentence should add information grounded in the context.
+
+CONTEXT:
+[Source: rtl/i2c_master.sv, lines 8-25]
+module i2c_master(clk, rst, start, address, rd_wr, din, stop, dout, SDA, SCL);
+    input clk, rst, start;
+    input [6:0] address;
+    input rd_wr;
+    input [7:0] din;
+    input stop;
+    output reg [7:0] dout;
+    inout SDA;
+    output SCL;
+
+    parameter READ =0, WRITE =1;
+    enum bit[3:0]{IDLE, START, ADDR , ADDR_REG, WACK, SACK , WRITE_DATA, WRITE_DATA_REG, WSTOP_1, READ_DATA, READ_DATA_1, READ_DATA_2, READ_DATA_REG, WSTOP_2, STOP} state;
+    bit mode;
+    logic ack;
+    logic [7:0] tx_reg;
+    logic [2:0] count;
+    logic sda, scl;
+    
+
+---
+
+[Source: tb/i2c_master_top.sv, lines 12-47]
+module i2c_master_top;
+    bit clk;
+
+    i2c_master_if  mstr_if(.clk(clk), 
+                           .state(mstr_dut.state),
+                           .mode(mstr_dut.mode),
+                           .ack(mstr_dut.ack),
+                           .count(mstr_dut.count),
+                           .tx_reg(mstr_dut.tx_reg)
+                           );
+                           
+    i2c_master    mstr_dut(.clk(mstr_if.clk), 
+                           .rst(mstr_if.rst), 
+                           .start(mstr_if.start), 
+                           .address(mstr_if.address), 
+                           .rd_wr(mstr_if.rd_wr), 
+                           .din(mstr_if.din), 
+                           .stop(mstr_if.stop), 
+                           .dout(mstr_if.dout), 
+                           .SDA(mstr_if.SDA), 
+                           .SCL(mstr_if.SCL)
+    );
+
+    initial begin
+        uvm_config_db #(virtual i2c_master_if)::set(null, "*", "i2c_master_vif", mstr_if);
+        run_test();
+    end
+
+    initial begin
+        $timeformat(-9, 0, "ns", 16);
+        clk = 0;
+        forever begin
+            #(PERIOD/2) clk = !clk;
+        end
+    end
+endmodule :i2c_master_top
+
+---
+
+[Source: tb/i2c_master_agent/i2c_master_stat_monitor.svh, lines 1-56]
+/*###################################################################*\
+##              Class Name: i2c_master_stat_monitor                  ##
+##              Project Name: i2c_master                             ##
+##              Date:   7/12/2023                                    ##
+##              Author: Kholoud Ebrahim Darwseh                      ##
+\*###################################################################*/
+
+`ifndef I2C_MASTER_STAT_MONITOR_SVH
+`define I2C_MASTER_STAT_MONITOR_SVH
+
+class i2c_master_stat_monitor extends uvm_monitor;
+    `uvm_component_utils(i2c_master_stat_monitor)
+
+    i2c_master_sequence_item item_1;
+    uvm_analysis_port #(i2c_master_sequence_item) mon_port_1;
+    
+    i2c_master_agent_config    mon2_confg;
+    virtual i2c_master_if      vif;
+
+    extern function new(string name = "i2c_master_stat_monitor", uvm_component parent);
+    extern function void build_phase(uvm_phase phase);
+    extern function void connect_phase(uvm_phase phase);
+    extern task run_phase(uvm_phase phase);
+endclass :i2c_master_stat_monitor
+
+function i2c_master_stat_monitor::new(string name = "i2c_master_stat_monitor", uvm_component parent);
+    super.new(name, parent);
+endfunction :new
+
+function void i2c_master_stat_monitor::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    if(! uvm_config_db #(i2c_master_agent_config)::get(this, "", "master_config", mon2_confg))
+        `uvm_fatal(get_full_name(),"Cannot get I2C Master Agent Config from configuration database!")
+
+    item_1 = i2c_master_sequence_item::type_id::create("item_1");
+
+    mon_port_1 = new("mon_port_1", this);
+endfunction :build_phase
+
+function void i2c_master_stat_monitor::connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    vif = mon2_confg.vif_confg;
+endfunction :connect_phase
+
+task i2c_master_stat_monitor::run_phase(uvm_phase phase);
+    super.run_phase(phase);
+    forever begin            
+        @(posedge vif.clk);
+        item_1.state_t = vif.state;
+        `uvm_info("STATE_COV_ITEM", "the packet while covering the state :", UVM_NONE)
+        //item_1.print();
+        mon_port_1.write(item_1);
+    end
+endtask :run_phase
+
+`endif 
+
+---
+
+[Source: tb/i2c_master_agent/i2c_master_agent.svh, lines 1-60]
+/*###################################################################*\
+##              Class Name: i2c_master_agent                         ##
+##              Project Name: i2c_master                             ##
+##              Date:   7/12/2023                                    ##
+##              Author: Kholoud Ebrahim Darwseh                      ##
+\*###################################################################*/
+
+`ifndef I2C_MASTER_AGENT_SVH
+`define I2C_MASTER_AGENT_SVH
+
+class i2c_master_agent extends uvm_agent;
+    `uvm_component_utils(i2c_master_agent)
+
+    i2c_master_agent_config   mstr_config;
+    uvm_active_passive_enum   is_active;
+    i2c_master_sequencer      sqr;
+    i2c_master_driver         drv;
+    i2c_master_monitor        mon;
+    i2c_master_stat_monitor   mon2;
+
+    uvm_analysis_port #(i2c_master_sequence_item) mon2agnt_port_1;
+    uvm_analysis_port #(i2c_master_sequence_item) mon2agnt_port_2;
+    uvm_analysis_port #(i2c_master_sequence_item) mon2agnt_port_3;
+    uvm_analysis_port #(i2c_master_sequence_item) mon2agnt_port_4;
+
+    extern function new(string name = "i2c_master_agent", uvm_component parent);
+    extern function void build_phase(uvm_phase phase);
+    extern function void connect_phase(uvm_phase phase);
+endclass :i2c_master_agent
+
+function i2c_master_agent::new(string name = "i2c_master_agent", uvm_component parent);
+    super.new(name, parent);
+endfunction :new
+
+function void i2c_master_agent::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    if(! uvm_config_db #(i2c_master_agent_config)::get(this, "", "master_config", mstr_config))
+        `uvm_fatal(get_full_name(),"Cannot get I2C Master Agent Config from configuration database!")
+    is_active = mstr_config.is_active;
+
+    if(is_active == UVM_ACTIVE)begin
+        sqr = i2c_master_sequencer::type_id::create("sqr", this);
+        drv = i2c_master_driver::type_id::create("drv", this);
+    end
+    mon  = i2c_master_monitor::type_id::create("mon", this);
+    mon2 = i2c_master_stat_monitor::type_id::create("mon2", this);
+
+    mon2agnt_port_1 = new("mon2agnt_port_1", this);
+    mon2agnt_port_2 = new("mon2agnt_port_2", this);
+    mon2agnt_port_3 = new("mon2agnt_port_3", this);
+    mon2agnt_port_4 = new("mon2agnt_port_4", this);
+endfunction :build_phase
+
+function void i2c_master_agent::connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    if(is_active == UVM_ACTIVE)begin
+        drv.seq_item_port.connect(sqr.seq_item_export);
+    end
+    mon2.mon_port_1.connect(this.mon2agnt_port_1);
+    mon.mon_port_2.connect(this.mon2agnt_port_2);
+
+---
+
+[Source: tb/i2c_master_agent/i2c_master_monitor.svh, lines 1-60]
+/*###################################################################*\
+##              Class Name: i2c_master_monitor                       ##
+##              Project Name: i2c_master                             ##
+##              Date:   7/12/2023                                    ##
+##              Author: Kholoud Ebrahim Darwseh                      ##
+\*###################################################################*/
+
+`ifndef I2C_MASTER_MONITOR_SVH
+`define I2C_MASTER_MONITOR_SVH
+
+class i2c_master_monitor extends uvm_monitor;
+    `uvm_component_utils(i2c_master_monitor)
+
+    i2c_master_sequence_item item_2, item_3, item_4;
+    uvm_analysis_port #(i2c_master_sequence_item) mon_port_2;
+    uvm_analysis_port #(i2c_master_sequence_item) mon_port_3;
+    uvm_analysis_port #(i2c_master_sequence_item) mon_port_4;
+
+    i2c_master_agent_config    mon_confg;
+    virtual i2c_master_if      vif;
+
+    extern function new(string name = "i2c_master_monitor", uvm_component parent);
+    extern function void build_phase(uvm_phase phase);
+    extern function void connect_phase(uvm_phase phase);
+    extern task run_phase(uvm_phase phase);
+endclass :i2c_master_monitor
+
+function i2c_master_monitor::new(string name = "i2c_master_monitor", uvm_component parent);
+    super.new(name, parent);
+endfunction :new
+
+function void i2c_master_monitor::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    if(! uvm_config_db #(i2c_master_agent_config)::get(this, "", "master_config", mon_confg))
+        `uvm_fatal(get_full_name(),"Cannot get I2C Master Agent Config from configuration database!")
+
+    item_2 = i2c_master_sequence_item::type_id::create("item_2");
+    item_3 = i2c_master_sequence_item::type_id::create("item_3");
+    item_4 = i2c_master_sequence_item::type_id::create("item_4");
+
+    mon_port_2 = new("mon_port_2", this);
+    mon_port_3 = new("mon_port_3", this);
+    mon_port_4 = new("mon_port_4", this);
+endfunction :build_phase
+
+function void i2c_master_monitor::connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    vif = mon_confg.vif_confg;
+endfunction :connect_phase
+
+task i2c_master_monitor::run_phase(uvm_phase phase);
+    super.run_phase(phase);
+    forever begin
+        fork
+            begin
+                @(vif.tx_reg == {vif.address,vif.rd_wr} && vif.state == 2 && vif.count == 0); //ADDR State
+                item_2.address = vif.address;
+                item_2.SCL = vif.SCL; 
+                item_2.rd_wr   = vif.rd_wr;
+                repeat(6) begin
+
+---
+
+[Source: tb/i2c_master_agent/i2c_master_driver.svh, lines 1-60]
+/*###################################################################*\
+##              Class Name: i2c_master_driver                        ##
+##              Project Name: i2c_master                             ##
+##              Date:   7/12/2023                                    ##
+##              Author: Kholoud Ebrahim Darwseh                      ##
+\*###################################################################*/
+
+`ifndef I2C_MASTER_DRIVER_SVH
+`define I2C_MASTER_DRIVER_SVH
+
+class i2c_master_driver extends uvm_driver #(i2c_master_sequence_item);
+    `uvm_component_utils(i2c_master_driver)
+
+    i2c_master_agent_config    drv_confg;
+    virtual i2c_master_if      vif;
+    i2c_master_sequence_item   drv_item;
+
+    extern function new(string name = "i2c_master_driver", uvm_component parent);
+    extern function void build_phase(uvm_phase phase);
+    extern function void connect_phase(uvm_phase phase);
+    extern task run_phase(uvm_phase phase);
+    extern task initialize_dut();
+    extern task drive(input i2c_master_sequence_item item);
+endclass :i2c_master_driver
+
+function i2c_master_driver::new(string name = "i2c_master_driver", uvm_component parent);
+    super.new(name, parent);
+endfunction :new
+
+function void i2c_master_driver::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    if(! uvm_config_db #(i2c_master_agent_config)::get(this, "", "master_config", drv_confg))
+        `uvm_fatal(get_full_name(),"Cannot get I2C Master Agent Config from configuration database!")
+endfunction :build_phase
+
+function void i2c_master_driver::connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    vif = drv_confg.vif_confg;
+endfunction :connect_phase
+
+task i2c_master_driver::run_phase(uvm_phase phase);
+    super.run_phase(phase);
+    initialize_dut();
+    forever begin
+        seq_item_port.get_next_item(drv_item);
+        drive(drv_item);
+        seq_item_port.item_done();
+    end
+endtask :run_phase
+
+task i2c_master_driver::initialize_dut();
+    vif.rst = 1'b1;
+    vif.start = 1'b0;
+    vif.address = 7'b0;
+    vif.rd_wr = 1'b0;
+    vif.din = 8'b0;
+    vif.stop = 1'b0;
+    @(negedge vif.clk);
+    #(PERIOD/2.0 - PERIOD/20.0);
+    vif.rst = 1'b0;
+
+---
+
+[Source: tb/i2c_master_environment.svh, lines 1-60]
+/*###################################################################*\
+##              Class Name: i2c_master_environment                   ##
+##              Project Name: i2c_master                             ##
+##              Date:   7/12/2023                                    ##
+##              Author: Kholoud Ebrahim Darwseh                      ##
+\*###################################################################*/
+
+`ifndef I2C_MASTER_ENVIRONMENT_SVH
+`define I2C_MASTER_ENVIRONMENT_SVH
+
+class i2c_master_environment extends uvm_env;
+    `uvm_component_utils(i2c_master_environment)
+
+    i2c_master_agent_config   mstr_agnt_config;
+    i2c_master_env_config     mstr_env_config;
+
+    i2c_master_agent                mstr_agnt;
+    i2c_master_scoreboard           mstr_scb;
+    i2c_master_coverage_collector   mstr_cov;
+
+    extern function new(string name = "i2c_master_environment", uvm_component parent);
+    extern function void build_phase(uvm_phase phase);
+    extern function void connect_phase(uvm_phase phase);
+endclass :i2c_master_environment
+
+function i2c_master_environment::new(string name = "i2c_master_environment", uvm_component parent);
+    super.new(name, parent);
+endfunction :new
+
+function void i2c_master_environment::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    mstr_agnt = i2c_master_agent::type_id::create("mstr_agnt", this);
+    mstr_scb  = i2c_master_scoreboard::type_id::create("mstr_scb", this);
+    mstr_cov  = i2c_master_coverage_collector::type_id::create("mstr_cov", this);
+
+    if(! uvm_config_db #(i2c_master_env_config)::get(this, "", "master_env_config", mstr_env_config))
+        `uvm_fatal(get_full_name(),"Cannot get I2C Master Env Config from configuration database!")
+
+    mstr_agnt_config = i2c_master_agent_config::type_id::create("mstr_agnt_config");
+    mstr_agnt_config.vif_confg = mstr_env_config.mstr_vif;
+    mstr_agnt_config.is_active = mstr_env_config.is_active;
+    
+    uvm_config_db #(i2c_master_agent_config)::set(this, "*", "master_config",mstr_agnt_config);
+endfunction :build_phase
+
+function void i2c_master_environment::connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+
+    if(mstr_env_config.scb_exist == 1) begin
+        mstr_agnt.mon2agnt_port_2.connect(mstr_scb.scb_imp_addr);
+        mstr_agnt.mon2agnt_port_3.connect(mstr_scb.scb_imp_data);
+        mstr_agnt.mon2agnt_port_4.connect(mstr_scb.scb_imp_stop);
+    end
+
+    if(mstr_env_config.cov_exist == 1) begin
+        mstr_agnt.mon2agnt_port_1.connect(mstr_cov.cov_imp_stat);
+        mstr_agnt.mon2agnt_port_2.connect(mstr_cov.cov_imp_addr);
+        mstr_agnt.mon2agnt_port_3.connect(mstr_cov.cov_imp_data);
+        mstr_agnt.mon2agnt_port_4.connect(mstr_cov.cov_imp_stop);
+    end
+
+---
+
+[Source: README.md, lines 1-11]
+# I2C : Inter-Integrated Circuit
+- An Inter-Integrated Circuit is a Serial Communication Protocol.
+- I2C Features: Intra System, Low Speed, Short Distance, Low Band Width (100 : 1000) kbps.
+- It support multi master multi slave.
+- `Master`: Initiate the communication and generate control signals.
+- `Slave`: Respond to the master.
+- The I2C protocol allows multiple devices to communicate with each other using just two wires: (SDA) for bidirectional data transfer and (SCL) for synchronization.
+- `SDA` : Serial data line.  `SCL` : Serial clock line.
+- After receiving each byte of data, the receiver (master or slave) sends ACK or NACK.
+- `ACK` : Acknowledgment indicates successful data reception.
+- `NACK`: Negative Acknowledgment indicates unsuccessful data reception.
+
+QUESTION:
+Where is the i2c_master module declared and what are its input/output ports?

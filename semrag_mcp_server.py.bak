@@ -1,0 +1,574 @@
+"""
+SemiRAG MCP server.
+
+Exposes the indexed semiconductor codebase through a small set of tools
+the tool-calling model (Nemotron, etc.) can drive directly. Navigation
+tools intentionally do NOT call the generation LLM — they reuse the
+existing SemiRAG retrieval, IR, and file-tables.
+
+Tool -> backend mapping:
+    semrag_ask           POST /v1/projects/{id}/answer
+    semrag_search        POST /v1/projects/{id}/query       (retrieval only, no LLM)
+    semrag_list_files    GET  /v1/projects/{id}/files
+    semrag_find_file     GET  /v1/projects/{id}/files       (pattern match in-process)
+    semrag_find_symbol   GET  /v1/projects/{id}/symbols
+    semrag_read_file     GET  /v1/projects/{id}/files/content
+    semrag_get_context   POST /v1/projects/{id}/query       (reuse as a context probe)
+    semrag_project_info  GET  /v1/projects/{id}/info
+"""
+from __future__ import annotations
+
+import fnmatch
+import os
+from typing import Any
+
+import httpx
+
+from mcp.server.mcpserver import MCPServer
+
+
+SEMRAG_URL = os.getenv("SEMRAG_URL", "http://127.0.0.1:8000")
+SEMRAG_API_KEY = os.getenv("SEMRAG_API_KEY", "dev-local-key")
+
+DEFAULT_TIMEOUT = 600.0
+SEARCH_TIMEOUT = 120.0  # navigation tools are cheap; cap tighter
+
+mcp = MCPServer("semrag")
+
+
+# ---------------------------------------------------------------------------
+# HTTP helpers
+# ---------------------------------------------------------------------------
+
+def _auth_headers() -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {SEMRAG_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+
+def _err(message: str) -> str:
+    return f"Error: {message}"
+
+
+def _validate_project_id(project_id: str) -> str | None:
+    if not project_id or not project_id.strip():
+        return "project_id cannot be empty."
+    return None
+
+
+async def _get_json(path: str, params: dict[str, Any] | None = None, timeout: float = DEFAULT_TIMEOUT) -> Any:
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.get(
+            f"{SEMRAG_URL}{path}",
+            headers=_auth_headers(),
+            params=params or {},
+        )
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"SemiRAG API {response.status_code} on GET {path}: {response.text[:500]}"
+        )
+    return response.json()
+
+
+async def _post_json(path: str, payload: dict[str, Any], timeout: float = DEFAULT_TIMEOUT) -> Any:
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(
+            f"{SEMRAG_URL}{path}",
+            headers=_auth_headers(),
+            json=payload,
+        )
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"SemiRAG API {response.status_code} on POST {path}: {response.text[:500]}"
+        )
+    return response.json()
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 — answer (unchanged behavior)
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def semrag_ask(project_id: str, question: str) -> str:
+    """
+    Ask SemiRAG a question about an indexed semiconductor codebase.
+
+    Full RAG pipeline: retrieval + ranking + grounding + local LLM.
+    The returned answer includes citations and sources.
+    """
+    if err := _validate_project_id(project_id):
+        return _err(err)
+    if not question or not question.strip():
+        return _err("question cannot be empty.")
+
+    url = f"{SEMRAG_URL}/v1/projects/{project_id}/answer"
+    payload = {"query": question}
+
+    try:
+        data = await _post_json(
+            f"/v1/projects/{project_id}/answer", payload, timeout=DEFAULT_TIMEOUT,
+        )
+    except httpx.RequestError as exc:
+        return _err(f"Failed to reach SemiRAG API at {SEMRAG_URL}: {exc}")
+    except RuntimeError as exc:
+        return _err(str(exc))
+
+    answer = data.get("answer", "")
+    citations = data.get("citations") or {}
+    sources = data.get("sources", []) or []
+
+    out = f"ANSWER:\n{answer}"
+
+    if isinstance(citations, dict) and citations:
+        cited_paths = citations.get("cited_paths") or []
+        valid = citations.get("valid_count", 0)
+        fabricated = citations.get("fabricated_count", 0)
+        if valid or fabricated or cited_paths:
+            out += f"\n\nCITATIONS (valid={valid}, fabricated={fabricated}):"
+            for path in cited_paths:
+                out += f"\n- {path}"
+
+    if sources:
+        out += "\n\nSOURCES:"
+        for source in sources:
+            if not isinstance(source, dict):
+                continue
+            path = source.get("relative_path", "?")
+            line = source.get("line_start")
+            symbol = source.get("symbol_name")
+            chunk_type = source.get("chunk_type")
+            score = source.get("fused_score")
+            tail = []
+            if isinstance(line, int):
+                tail.append(f"line {line}")
+            if symbol:
+                tail.append(f"symbol={symbol}")
+            if chunk_type:
+                tail.append(f"type={chunk_type}")
+            if isinstance(score, (int, float)):
+                tail.append(f"score={score:.3f}")
+            out += f"\n- {path}" + (f" ({'; '.join(tail)})" if tail else "")
+
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — retrieval (no LLM)
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def semrag_search(
+    project_id: str,
+    query: str,
+    top_k: int = 10,
+    enable_graph_expansion: bool = True,
+    enable_reranking: bool = True,
+) -> str:
+    """
+    Search the indexed project and return relevant chunks WITHOUT calling
+    the generation LLM. Use this when you want to explore the corpus
+    cheaply before deciding whether to ask a full question.
+    """
+    if err := _validate_project_id(project_id):
+        return _err(err)
+    if not query or not query.strip():
+        return _err("query cannot be empty.")
+    if top_k < 1 or top_k > 50:
+        return _err("top_k must be between 1 and 50.")
+
+    payload = {
+        "query": query,
+        "top_k": top_k,
+        "enable_graph_expansion": enable_graph_expansion,
+        "enable_reranking": enable_reranking,
+        "enable_intent_boost": True,
+    }
+
+    try:
+        data = await _post_json(
+            f"/v1/projects/{project_id}/query", payload, timeout=SEARCH_TIMEOUT,
+        )
+    except httpx.RequestError as exc:
+        return _err(f"Failed to reach SemiRAG API at {SEMRAG_URL}: {exc}")
+    except RuntimeError as exc:
+        return _err(str(exc))
+
+    chunks = data.get("included_chunks", []) or []
+    excluded = data.get("excluded_chunk_count", 0)
+
+    if not chunks:
+        return f"No results for query: {query!r} (excluded={excluded})."
+
+    lines = [
+        f"SEARCH RESULTS for {query!r} (top_k={top_k}, included={len(chunks)}, excluded={excluded}):"
+    ]
+    for idx, chunk in enumerate(chunks, start=1):
+        if not isinstance(chunk, dict):
+            continue
+        path = chunk.get("relative_path", "?")
+        line_start = chunk.get("line_start")
+        line_end = chunk.get("line_end")
+        score = chunk.get("fused_score")
+        symbol = chunk.get("symbol_name")
+        chunk_type = chunk.get("chunk_type")
+        line_range = (
+            f"L{line_start}-{line_end}" if isinstance(line_start, int) and isinstance(line_end, int)
+            else (f"L{line_start}" if isinstance(line_start, int) else "")
+        )
+        header_bits = [f"[{idx}] {path}"]
+        if line_range:
+            header_bits.append(line_range)
+        if isinstance(score, (int, float)):
+            header_bits.append(f"score={score:.3f}")
+        if symbol:
+            header_bits.append(f"symbol={symbol}")
+        if chunk_type:
+            header_bits.append(f"type={chunk_type}")
+        lines.append("  " + " | ".join(header_bits))
+        text = chunk.get("text", "")
+        if text:
+            snippet = text.strip().splitlines()
+            preview = "\n".join("    " + s for s in snippet[:6])
+            if len(snippet) > 6:
+                preview += f"\n    ... ({len(snippet) - 6} more lines)"
+            lines.append(preview)
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — repository navigation
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def semrag_list_files(
+    project_id: str,
+    category: str | None = None,
+    limit: int = 500,
+) -> str:
+    """
+    List indexed files in the project. Optionally filter by category
+    (e.g. "rtl_verilog", "testbench_uvm", "markdown").
+    """
+    if err := _validate_project_id(project_id):
+        return _err(err)
+    if limit < 1 or limit > 5000:
+        return _err("limit must be between 1 and 5000.")
+
+    try:
+        data = await _get_json(f"/v1/projects/{project_id}/files")
+    except httpx.RequestError as exc:
+        return _err(f"Failed to reach SemiRAG API at {SEMRAG_URL}: {exc}")
+    except RuntimeError as exc:
+        return _err(str(exc))
+
+    files = data.get("files", []) or []
+    if category:
+        files = [f for f in files if (f.get("category") or "") == category]
+    files = files[:limit]
+
+    if not files:
+        filter_msg = f" matching category={category!r}" if category else ""
+        return f"No indexed files{filter_msg} for project '{project_id}'."
+
+    by_category: dict[str, list[dict]] = {}
+    for f in files:
+        by_category.setdefault(f.get("category") or "unknown", []).append(f)
+
+    lines = [f"INDEXED FILES for project '{project_id}' (showing {len(files)}):"]
+    for cat in sorted(by_category.keys()):
+        lines.append(f"\n[{cat}] ({len(by_category[cat])} files)")
+        for f in by_category[cat][:200]:
+            size = f.get("size_bytes", 0) or 0
+            lines.append(f"  {f.get('relative_path')}  ({size} bytes)")
+        if len(by_category[cat]) > 200:
+            lines.append(f"  ... ({len(by_category[cat]) - 200} more in {cat})")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def semrag_find_file(
+    project_id: str,
+    pattern: str,
+    category: str | None = None,
+    limit: int = 50,
+) -> str:
+    """
+    Find indexed files whose relative path matches a glob-style pattern
+    (case-insensitive, fnmatch: e.g. "i2c*", "*driver*.svh", "tb/**/seq_*.sv").
+    """
+    if err := _validate_project_id(project_id):
+        return _err(err)
+    if not pattern or not pattern.strip():
+        return _err("pattern cannot be empty.")
+    if limit < 1 or limit > 500:
+        return _err("limit must be between 1 and 500.")
+
+    try:
+        data = await _get_json(f"/v1/projects/{project_id}/files")
+    except httpx.RequestError as exc:
+        return _err(f"Failed to reach SemiRAG API at {SEMRAG_URL}: {exc}")
+    except RuntimeError as exc:
+        return _err(str(exc))
+
+    files = data.get("files", []) or []
+    if category:
+        files = [f for f in files if (f.get("category") or "") == category]
+
+    pat_lower = pattern.lower()
+    matches = [
+        f for f in files
+        if fnmatch.fnmatchcase((f.get("relative_path") or "").lower(), pat_lower)
+    ]
+    matches = matches[:limit]
+
+    if not matches:
+        return f"No indexed files match pattern {pattern!r} in project '{project_id}'."
+
+    lines = [f"FILES matching {pattern!r} in project '{project_id}' (showing {len(matches)}):"]
+    for f in matches:
+        size = f.get("size_bytes", 0) or 0
+        lines.append(f"  {f.get('relative_path')}  [{f.get('category')}]  ({size} bytes)")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 — code navigation
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def semrag_find_symbol(
+    project_id: str,
+    symbol: str,
+    kind: str | None = None,
+    limit: int = 20,
+) -> str:
+    """
+    Find a symbol in the indexed codebase by exact name. Looks up the
+    structural IR (modules, packages, file-stems, Python modules, etc.)
+    built during ingestion. Use kind to narrow (e.g. "sv_module",
+    "sv_package", "py_module").
+    """
+    if err := _validate_project_id(project_id):
+        return _err(err)
+    if not symbol or not symbol.strip():
+        return _err("symbol cannot be empty.")
+    if limit < 1 or limit > 200:
+        return _err("limit must be between 1 and 200.")
+
+    params: dict[str, Any] = {"symbol": symbol, "limit": limit}
+    if kind:
+        params["kind"] = kind
+
+    try:
+        data = await _get_json(
+            f"/v1/projects/{project_id}/symbols",
+            params=params,
+            timeout=SEARCH_TIMEOUT,
+        )
+    except httpx.RequestError as exc:
+        return _err(f"Failed to reach SemiRAG API at {SEMRAG_URL}: {exc}")
+    except RuntimeError as exc:
+        return _err(str(exc))
+
+    results = data.get("results", []) or []
+    if not results:
+        kind_msg = f" with kind={kind!r}" if kind else ""
+        return f"No IR nodes named {symbol!r}{kind_msg} in project '{project_id}'."
+
+    lines = [f"SYMBOLS named {symbol!r} in project '{project_id}' (count={data.get('count', len(results))}):"]
+    for r in results:
+        path = r.get("relative_path", "?")
+        rkind = r.get("kind", "?")
+        line = r.get("line")
+        attrs = r.get("attributes") or {}
+        bits = [f"  [{rkind}] {path}"]
+        if isinstance(line, int):
+            bits.append(f"line {line}")
+        # Surface a small, useful subset of attributes without dumping the
+        # full parser payload.
+        for key in ("module_name", "package_name", "class_name", "extends", "parameters"):
+            if key in attrs:
+                bits.append(f"{key}={attrs[key]}")
+        lines.append(" | ".join(bits))
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 — source / context inspection
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def semrag_read_file(
+    project_id: str,
+    file_path: str,
+    start_line: int | None = None,
+    end_line: int | None = None,
+    max_lines: int = 200,
+) -> str:
+    """
+    Read the text content of an indexed file. Only files in the project's
+    index can be read; this is not a generic filesystem tool. Pass
+    start_line / end_line to pull a slice (1-indexed, inclusive).
+    """
+    if err := _validate_project_id(project_id):
+        return _err(err)
+    if not file_path or not file_path.strip():
+        return _err("file_path cannot be empty.")
+    if max_lines < 1 or max_lines > 5000:
+        return _err("max_lines must be between 1 and 5000.")
+    if start_line is not None and start_line < 1:
+        return _err("start_line must be >= 1.")
+    if end_line is not None and end_line < 1:
+        return _err("end_line must be >= 1.")
+
+    params: dict[str, Any] = {"file_path": file_path}
+    if start_line is not None:
+        params["start_line"] = start_line
+    if end_line is not None:
+        params["end_line"] = end_line
+
+    try:
+        data = await _get_json(
+            f"/v1/projects/{project_id}/files/content",
+            params=params,
+            timeout=SEARCH_TIMEOUT,
+        )
+    except httpx.RequestError as exc:
+        return _err(f"Failed to reach SemiRAG API at {SEMRAG_URL}: {exc}")
+    except RuntimeError as exc:
+        return _err(str(exc))
+
+    content = data.get("content", "")
+    if not content:
+        return (
+            f"File {file_path!r} in project '{project_id}' is empty or binary."
+        )
+
+    lines = content.splitlines()
+    truncated_note = ""
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        truncated_note = f"\n\n[... truncated to first {max_lines} lines; use start_line/end_line for the rest]"
+
+    header = (
+        f"FILE {file_path} (project={project_id}, category={data.get('category')}, "
+        f"lines {data.get('start_line')}-{data.get('end_line')} of {data.get('total_lines')}, "
+        f"size={data.get('size_bytes')} bytes):"
+    )
+    return f"{header}\n" + "\n".join(lines) + truncated_note
+
+
+@mcp.tool()
+async def semrag_get_context(
+    project_id: str,
+    query: str,
+    file_path: str | None = None,
+    top_k: int = 5,
+) -> str:
+    """
+    Get the most relevant context chunks around a question, optionally
+    anchored to a specific file. Returns the same retrieval output as
+    semrag_search but filtered to a single file when file_path is given,
+    and rendered for direct inclusion in prompts.
+    """
+    if err := _validate_project_id(project_id):
+        return _err(err)
+    if not query or not query.strip():
+        return _err("query cannot be empty.")
+    if top_k < 1 or top_k > 50:
+        return _err("top_k must be between 1 and 50.")
+
+    payload = {
+        "query": query,
+        "top_k": top_k,
+        "enable_graph_expansion": False,  # keep this cheap
+        "enable_reranking": True,
+        "enable_intent_boost": True,
+    }
+
+    try:
+        data = await _post_json(
+            f"/v1/projects/{project_id}/query", payload, timeout=SEARCH_TIMEOUT,
+        )
+    except httpx.RequestError as exc:
+        return _err(f"Failed to reach SemiRAG API at {SEMRAG_URL}: {exc}")
+    except RuntimeError as exc:
+        return _err(str(exc))
+
+    chunks = data.get("included_chunks", []) or []
+    if file_path:
+        chunks = [c for c in chunks if c.get("relative_path") == file_path]
+
+    if not chunks:
+        scope = f" in {file_path}" if file_path else ""
+        return f"No context found for {query!r}{scope} in project '{project_id}'."
+
+    out = [f"CONTEXT for {query!r} (project={project_id}, chunks={len(chunks)}):"]
+    for idx, chunk in enumerate(chunks, start=1):
+        path = chunk.get("relative_path", "?")
+        line_start = chunk.get("line_start")
+        line_end = chunk.get("line_end")
+        symbol = chunk.get("symbol_name")
+        line_range = (
+            f"L{line_start}-{line_end}" if isinstance(line_start, int) and isinstance(line_end, int)
+            else ""
+        )
+        out.append(
+            f"\n--- chunk {idx}: {path} {line_range}"
+            + (f" symbol={symbol}" if symbol else "")
+            + " ---"
+        )
+        out.append((chunk.get("text") or "").rstrip())
+    return "\n".join(out)
+
+
+# ---------------------------------------------------------------------------
+# Phase 6 — project information
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def semrag_project_info(project_id: str) -> str:
+    """
+    Return summary statistics about an indexed project: file count,
+    category breakdown, IR node count, last scan, root path. Useful as a
+    first call to understand what the project contains.
+    """
+    if err := _validate_project_id(project_id):
+        return _err(err)
+
+    try:
+        info = await _get_json(f"/v1/projects/{project_id}/info")
+    except httpx.RequestError as exc:
+        return _err(f"Failed to reach SemiRAG API at {SEMRAG_URL}: {exc}")
+    except RuntimeError as exc:
+        return _err(str(exc))
+
+    last_scan = info.get("last_scan") or {}
+    out = [
+        f"PROJECT {project_id}:",
+        f"  root_path:     {info.get('root_path')}",
+        f"  created_at:    {info.get('created_at')}",
+        f"  file_count:    {info.get('file_count')}",
+        f"  total_bytes:   {info.get('total_bytes')}",
+        f"  ir_node_count: {info.get('ir_node_count')}",
+    ]
+    if last_scan:
+        out.append(
+            "  last_scan:     completed_at={} files={} bytes={}".format(
+                last_scan.get("completed_at"),
+                last_scan.get("file_count"),
+                last_scan.get("total_bytes"),
+            )
+        )
+    cats = info.get("categories") or []
+    if cats:
+        out.append("  categories:")
+        for c in cats:
+            out.append(f"    - {c.get('category')}: {c.get('count')}")
+    return "\n".join(out)
+
+
+if __name__ == "__main__":
+    mcp.run()

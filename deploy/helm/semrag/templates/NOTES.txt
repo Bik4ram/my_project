@@ -1,0 +1,57 @@
+SemRAG has been deployed.
+
+Release name: {{ .Release.Name }}
+Namespace:    {{ .Release.Namespace }}
+
+----- Health ---------------------------------------------------------
+
+Once the pods are ready, verify the deployment:
+
+  kubectl --namespace {{ .Release.Namespace }} get pods -l "app.kubernetes.io/name={{ include "semrag.name" . }},app.kubernetes.io/instance={{ .Release.Name }}"
+
+  # Liveness — always 200 unless the process is dead.
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "semrag.fullname" . }} 8000:80
+  curl http://localhost:8000/livez
+
+  # Readiness — checks every dependency.
+  curl http://localhost:8000/readyz
+
+  # Build metadata.
+  curl http://localhost:8000/version
+
+----- Configuration --------------------------------------------------
+
+Override deployment values with `--set` or a custom values file:
+
+  helm upgrade {{ .Release.Name }} ./deploy/helm/semrag \
+      --namespace {{ .Release.Namespace }} \
+      --reuse-values \
+      --set replicaCount=3
+
+Secrets are NOT managed by this chart. Create a Secret with these keys:
+
+  POSTGRES_PASSWORD
+  SEMRAG_API_KEYS
+  SEMRAG_LLM_API_KEY          (optional)
+  SEMRAG_EMBEDDING_API_KEY    (optional)
+
+Then set `existingSecret: <name>` to reuse it.
+
+{{- if .Values.ingress.enabled }}
+
+----- Ingress --------------------------------------------------------
+
+The API is reachable at:
+{{- range .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $.host | default "localhost" }}{{ .path }}
+  {{- end }}
+{{- end }}
+{{- end }}
+
+{{- if not .Values.persistence.enabled }}
+
+WARNING: persistence.enabled is false — the embedding cache and debug
+         artifacts will be lost on pod restart. Set persistence.enabled=true
+         for non-ephemeral deployments.
+{{- end }}

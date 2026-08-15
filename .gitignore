@@ -1,0 +1,40 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Models / large artifacts
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+
+# Database / generated artifacts
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+
+# OS
+.DS_Store

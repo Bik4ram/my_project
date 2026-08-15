@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "semrag.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "semrag.labels" . | nindent 4 }}
+data:
+  # Database URL — password interpolated from the Secret at runtime.
+  SEMRAG_DATABASE_URL: "{{ .Values.config.databaseUrlTemplate }}"
+
+  # Logging.
+  SEMRAG_LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  SEMRAG_LOG_FORMAT: {{ .Values.config.logFormat | quote }}
+
+  # LLM provider.
+  SEMRAG_LLM_PROVIDER: {{ .Values.config.llm.provider | quote }}
+  SEMRAG_LLM_MODEL: {{ .Values.config.llm.model | quote }}
+  SEMRAG_LLM_BASE_URL: {{ .Values.config.llm.baseUrl | quote }}
+  SEMRAG_LLM_NUM_PREDICT: {{ .Values.config.llm.numPredict | quote }}
+
+  # Embedding provider.
+  SEMRAG_EMBEDDING_PROVIDER: {{ .Values.config.embedding.provider | quote }}
+  SEMRAG_EMBEDDING_MODEL: {{ .Values.config.embedding.model | quote }}
+  SEMRAG_EMBEDDING_BASE_URL: {{ .Values.config.embedding.baseUrl | quote }}
+  SEMRAG_EMBEDDING_DIMENSION: {{ .Values.config.embedding.dimension | quote }}
+
+  # Cache / rate-limit backends.
+  SEMRAG_QUERY_CACHE_BACKEND: {{ .Values.config.queryCacheBackend | quote }}
+  SEMRAG_RATE_LIMIT_BACKEND: {{ .Values.config.rateLimitBackend | quote }}
+
+  # Security.
+  SEMRAG_ENVIRONMENT: {{ .Values.config.environment | quote }}
+  SEMRAG_TRUSTED_HOSTS: {{ .Values.config.trustedHosts | quote }}
+  SEMRAG_CORS_ORIGINS: {{ .Values.config.corsOrigins | quote }}
+  SEMRAG_REJECT_DEV_KEYS_IN_PRODUCTION: {{ .Values.config.rejectDevKeysInProduction | quote }}
+  SEMRAG_MAX_BODY_SIZE: {{ .Values.config.maxBodySize | quote }}
+
+  # Build metadata.
+  SEMRAG_GIT_COMMIT: {{ .Values.config.gitCommit | quote }}
+  SEMRAG_BUILD_TIME: {{ .Values.config.buildTime | quote }}

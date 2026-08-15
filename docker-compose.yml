@@ -1,0 +1,260 @@
+# SemRAG — production Docker Compose.
+#
+# Bring up the API, Postgres with pgvector, and (optionally) Ollama and
+# Redis with a single `docker compose up -d`. Configuration is read from
+# `.env` (or a file passed with --env-file). Service ports, credentials,
+# resource limits, and image tags all flow through environment variables
+# so the same compose file works locally, on a single VM, or in a CI
+# integration runner.
+#
+# Services:
+#   postgres  — Postgres 16 with the pgvector extension pre-installed
+#               via the official pgvector/pgvector image.
+#   redis     — Optional. Rate limiter and query-cache backend.
+#               Comment out if you only need the in-memory backends.
+#   ollama    — Optional. LLM + embedding provider. Comment out if you
+#               point SEMRAG_LLM_BASE_URL / SEMRAG_EMBEDDING_BASE_URL at
+#               an external server.
+#   api       — SemRAG API. Waits for postgres to be healthy before
+#               starting (depends_on + condition: service_healthy).
+#
+# Usage:
+#   cp .env.example .env
+#   docker compose up -d
+#   curl http://localhost:${SEMRAG_API_PORT:-8000}/livez
+#   curl http://localhost:${SEMRAG_API_PORT:-8000}/readyz
+#   curl http://localhost:${SEMRAG_API_PORT:-8000}/version
+#
+# Local development overrides live in docker-compose.override.yml and
+# are merged automatically by `docker compose up` without flags.
+
+name: semrag
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: semrag-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SEMRAG_POSTGRES_DB:-semrag}
+      POSTGRES_USER: ${SEMRAG_POSTGRES_USER:-semrag}
+      POSTGRES_PASSWORD: ${SEMRAG_POSTGRES_PASSWORD:-semrag}
+      # Tune shared_buffers / work_mem for the operator's hardware via
+      # extra command-line args; the image's defaults are fine for dev.
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=${POSTGRES_SHARED_BUFFERS:-256MB}"
+      - "-c"
+      - "max_connections=${POSTGRES_MAX_CONNECTIONS:-200}"
+      - "-c"
+      - "log_statement=none"
+      - "-c"
+      - "log_min_duration_statement=${POSTGRES_LOG_MIN_DURATION_MS:-1000}"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - semrag
+    ports:
+      # Bound to 127.0.0.1 by default so the database isn't reachable
+      # from the host network unless the operator explicitly changes
+      # SEMRAG_POSTGRES_HOST_PORT. Internal traffic stays on the
+      # `semrag` bridge network.
+      - "${SEMRAG_POSTGRES_HOST_BIND:-127.0.0.1}:${SEMRAG_POSTGRES_HOST_PORT:-5432}:5432"
+    healthcheck:
+      # pg_isready handles the TCP / auth handshake; the SELECT 1
+      # guarantees the database itself accepts queries. pgvector is
+      # verified by the API's /readyz probe, not here, since the
+      # extension is provided by the image and only matters once we
+      # try to insert a Vector.
+      test:
+        - "CMD-SHELL"
+        - "pg_isready -U ${SEMRAG_POSTGRES_USER:-semrag} -d ${SEMRAG_POSTGRES_DB:-semrag} && psql -U ${SEMRAG_POSTGRES_USER:-semrag} -d ${SEMRAG_POSTGRES_DB:-semrag} -c 'SELECT 1'"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: ${POSTGRES_MEMORY_LIMIT:-2g}
+          cpus: "${POSTGRES_CPU_LIMIT:-2.0}"
+
+  redis:
+    image: redis:7-alpine
+    container_name: semrag-redis
+    restart: unless-stopped
+    profiles: ["redis"]   # Opt-in. Activate with: docker compose --profile redis up
+    command:
+      - "redis-server"
+      - "--maxmemory"
+      - "${REDIS_MAXMEMORY:-256mb}"
+      - "--maxmemory-policy"
+      - "allkeys-lru"
+      - "--appendonly"
+      - "no"
+    volumes:
+      - redis-data:/data
+    networks:
+      - semrag
+    ports:
+      - "${SEMRAG_REDIS_HOST_BIND:-127.0.0.1}:${SEMRAG_REDIS_HOST_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: ${REDIS_MEMORY_LIMIT:-512m}
+          cpus: "${REDIS_CPU_LIMIT:-1.0}"
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: semrag-ollama
+    restart: unless-stopped
+    profiles: ["ollama"]  # Opt-in. Activate with: docker compose --profile ollama up
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - semrag
+    ports:
+      # 11434 is the Ollama default. Bound to loopback by default so
+      # the model server isn't exposed to the host network.
+      - "${SEMRAG_OLLAMA_HOST_BIND:-127.0.0.1}:${SEMRAG_OLLAMA_HOST_PORT:-11434}:11434"
+    healthcheck:
+      # /api/tags returns the list of pulled models — a cheaper probe
+      # than the full generate endpoint and the same signal "Ollama is
+      # answering HTTP".
+      test: ["CMD-SHELL", "curl -fsS http://localhost:11434/api/tags || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: ${OLLAMA_MEMORY_LIMIT:-8g}
+          cpus: "${OLLAMA_CPU_LIMIT:-4.0}"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${SEMRAG_IMAGE:-semrag:latest}
+    container_name: semrag-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+        required: false       # `redis` is profile-gated; not required when profile is off
+      ollama:
+        condition: service_healthy
+        required: false
+    env_file:
+      - path: .env
+        required: false       # Falls back to the inline environment below.
+    environment:
+      # The Compose service name becomes the in-network hostname. The
+      # API connects to Postgres via the bridge network so the published
+      # host port isn't required.
+      SEMRAG_DATABASE_URL: "postgresql+psycopg2://${SEMRAG_POSTGRES_USER:-semrag}:${SEMRAG_POSTGRES_PASSWORD:-semrag}@postgres:5432/${SEMRAG_POSTGRES_DB:-semrag}"
+      SEMRAG_LLM_BASE_URL: ${SEMRAG_LLM_BASE_URL:-http://ollama:11434}
+      SEMRAG_EMBEDDING_BASE_URL: ${SEMRAG_EMBEDDING_BASE_URL:-http://ollama:11434}
+      SEMRAG_ENVIRONMENT: "production"
+      SEMRAG_LOG_LEVEL: ${SEMRAG_LOG_LEVEL:-INFO}
+      SEMRAG_LOG_FORMAT: ${SEMRAG_LOG_FORMAT:-json}
+      # Indexing runs in the dedicated worker service below, not in the
+      # API process. The K8s/Helm shapes make the same choice; keeping it
+      # explicit here avoids double-execution when the worker service is up.
+      SEMRAG_API_RUNS_WORKER: "false"
+    networks:
+      - semrag
+    ports:
+      - "${SEMRAG_API_HOST_BIND:-0.0.0.0}:${SEMRAG_API_PORT:-8000}:8000"
+    healthcheck:
+      # /livez is process liveness — always 200 unless the Python
+      # process is dead. /readyz checks every dependency; the kubelet's
+      # readiness probe would use that, but a Docker HEALTHCHECK
+      # shouldn't fail every time Postgres has a hiccup, so we use
+      # /livez here and rely on /readyz for operator dashboards.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/livez || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: ${SEMRAG_API_MEMORY_LIMIT:-1g}
+          cpus: "${SEMRAG_API_CPU_LIMIT:-2.0}"
+    # uvicorn's graceful shutdown needs SIGTERM, not SIGKILL. tini (in
+    # the Dockerfile) reaps zombies and forwards signals.
+    stop_grace_period: 30s
+    stop_signal: SIGTERM
+
+  worker:
+    # Indexing worker. Runs `python -m semrag.worker`, which polls the
+    # persistent job store (Postgres) and runs the indexing pipeline.
+    # The API process no longer executes jobs in-process.
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${SEMRAG_IMAGE:-semrag:latest}
+    container_name: semrag-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+        required: false
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      SEMRAG_API_RUNS_WORKER: "false"
+      SEMRAG_JOB_STORE_BACKEND: "database"
+      SEMRAG_DATABASE_URL: "postgresql+psycopg2://${SEMRAG_POSTGRES_USER:-semrag}:${SEMRAG_POSTGRES_PASSWORD:-semrag}@postgres:5432/${SEMRAG_POSTGRES_DB:-semrag}"
+      SEMRAG_LLM_BASE_URL: ${SEMRAG_LLM_BASE_URL:-http://ollama:11434}
+      SEMRAG_EMBEDDING_BASE_URL: ${SEMRAG_EMBEDDING_BASE_URL:-http://ollama:11434}
+      SEMRAG_ENVIRONMENT: "production"
+      SEMRAG_LOG_LEVEL: ${SEMRAG_LOG_LEVEL:-INFO}
+      SEMRAG_LOG_FORMAT: ${SEMRAG_LOG_FORMAT:-json}
+    networks:
+      - semrag
+    # No ports published — workers don't serve HTTP. They run the
+    # indexing pipeline as a sidecar to the API.
+    command:
+      - "python"
+      - "-m"
+      - "semrag.worker"
+    healthcheck:
+      test: ["CMD-SHELL", "test -d /proc/1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: ${SEMRAG_WORKER_MEMORY_LIMIT:-4g}
+          cpus: "${SEMRAG_WORKER_CPU_LIMIT:-4.0}"
+    stop_grace_period: 60s
+    stop_signal: SIGTERM
+
+volumes:
+  postgres-data:
+    name: semrag-postgres-data
+  redis-data:
+    name: semrag-redis-data
+  ollama-data:
+    name: semrag-ollama-data
+
+networks:
+  semrag:
+    name: semrag-net
+    driver: bridge

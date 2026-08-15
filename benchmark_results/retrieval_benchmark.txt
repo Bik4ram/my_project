@@ -1,0 +1,12 @@
+Retrieval Benchmark
+-------------------
+Queries ............ 50
+Top-K .............. 10
+Top1 Recall ........ 25%
+Top3 Recall ........ 47%
+Top5 Recall ........ 56%
+MRR ................ 0.55
+Average Rank ....... 3.0
+Average Logs ....... 2.4
+Average RTL ........ 2.0
+Average Specs ...... 0.5

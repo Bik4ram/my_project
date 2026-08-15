@@ -1,0 +1,1358 @@
+{
+  "benchmark": "RB-01",
+  "project_id": "rtl_uvm",
+  "top_k": 10,
+  "query_count": 50,
+  "aggregate": {
+    "recall_at_1": 0.2533333333333333,
+    "recall_at_3": 0.4733333333333334,
+    "recall_at_5": 0.555,
+    "mrr": 0.5471904761904762,
+    "average_rank": 2.9728682170542635,
+    "hit_rate": null,
+    "ndcg": null
+  },
+  "composition": {
+    "avg_logs": 2.38,
+    "avg_rtl": 2.02,
+    "avg_spec": 0.46
+  },
+  "latency": {
+    "total_seconds": 9.795696985995164,
+    "avg_ms_per_query": 195.91393971990328
+  },
+  "per_query": [
+    {
+      "query_id": "rtluvm_nav_01",
+      "expected_chunk_ids": [
+        "rtl_uvm::rtl/i2c_master.sv::sv_module_signature::i2c_master"
+      ],
+      "retrieved_chunk_ids": [
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_top.sv",
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh",
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "tb/i2c_master_agent/i2c_master_monitor.svh",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "tb/i2c_master_environment.svh",
+        "README.md"
+      ],
+      "top1_recall": 1.0,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 1.0,
+      "average_rank": 1.0,
+      "log_count": 0,
+      "rtl_count": 2,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_nav_02",
+      "expected_chunk_ids": [
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::0",
+        "rtl_uvm::rtl/i2c_master.sv::sv_module_signature::i2c_master"
+      ],
+      "retrieved_chunk_ids": [
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh",
+        "tb/i2c_master_agent/i2c_master_monitor.svh",
+        "tb/i2c_master_coverage_collector.svh",
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "tb/i2c_master_scoreboard.svh",
+        "tb/i2c_master_sequence_item.svh",
+        "README.md"
+      ],
+      "top1_recall": 0.5,
+      "top3_recall": 0.5,
+      "top5_recall": 0.5,
+      "mrr": 1.0,
+      "average_rank": 1.0,
+      "log_count": 0,
+      "rtl_count": 1,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_nav_03",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_top.sv::sv_module::i2c_master_top"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_top.sv",
+        "rtl/i2c_master.sv",
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "sim/i2c_master_run.do",
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write1_test_log.log"
+      ],
+      "top1_recall": 1.0,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 1.0,
+      "average_rank": 1.0,
+      "log_count": 5,
+      "rtl_count": 2,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_nav_04",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_if.sv::sv_module::i2c_master_if",
+        "rtl_uvm::tb/i2c_master_top.sv::sv_module::i2c_master_top"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_if.sv",
+        "README.md",
+        "tb/i2c_master_top.sv",
+        "tb/i2c_master_test_lib/i2c_master_base_test.svh",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh",
+        "tb/i2c_master_scoreboard.svh",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log"
+      ],
+      "top1_recall": 0.5,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 1.0,
+      "average_rank": 2.0,
+      "log_count": 3,
+      "rtl_count": 2,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_nav_05",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_agent/i2c_master_agent.svh::generic_window::0",
+        "rtl_uvm::tb/i2c_master_agent/i2c_master_agent.svh::generic_window::1"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh",
+        "tb/i2c_master_agent/i2c_master_monitor.svh",
+        "tb/i2c_master_environment.svh",
+        "tb/i2c_master_agent/i2c_master_agent_config.svh",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "rtl/i2c_master.sv",
+        "rtl/i2c_master.sv"
+      ],
+      "top1_recall": 0.5,
+      "top3_recall": 0.5,
+      "top5_recall": 0.5,
+      "mrr": 1.0,
+      "average_rank": 1.0,
+      "log_count": 2,
+      "rtl_count": 2,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_nav_06",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_agent/i2c_master_driver.svh::generic_window::0",
+        "rtl_uvm::tb/i2c_master_agent/i2c_master_driver.svh::generic_window::1"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "tb/i2c_master_agent/i2c_master_monitor.svh",
+        "README.md",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_top.sv",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_agent/i2c_master_agent.svh"
+      ],
+      "top1_recall": 0.5,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 1.0,
+      "average_rank": 1.5,
+      "log_count": 0,
+      "rtl_count": 4,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_nav_07",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_seq_lib/i2c_master_write1_seq.svh::generic_window::0",
+        "rtl_uvm::tb/i2c_master_seq_lib/i2c_master_write2_seq.svh::generic_window::0"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_test_lib/i2c_master_write2_test.svh",
+        "tb/i2c_master_test_lib/i2c_master_write1_test.svh",
+        "tb/i2c_master_seq_lib/i2c_master_write1_seq.svh",
+        "tb/i2c_master_seq_lib/i2c_master_write2_seq.svh",
+        "tb/i2c_master_agent/i2c_master_sequencer.svh",
+        "tb/i2c_master_sequence_item.svh",
+        "rtl/i2c_master.sv",
+        "rtl/i2c_master.sv"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.5,
+      "top5_recall": 1.0,
+      "mrr": 0.3333333333333333,
+      "average_rank": 3.5,
+      "log_count": 0,
+      "rtl_count": 2,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_nav_08",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_test_lib/i2c_master_write1_test.svh::generic_window::0",
+        "rtl_uvm::tb/i2c_master_test_lib/i2c_master_write2_test.svh::generic_window::0"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/log/write1_test_log.log",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_test_lib/i2c_master_write2_test.svh",
+        "tb/i2c_master_test_lib/i2c_master_write1_test.svh",
+        "tb/i2c_master_test_lib/i2c_master_base_test.svh",
+        "tb/i2c_master_seq_lib/i2c_master_write2_seq.svh",
+        "tb/i2c_master_seq_lib/i2c_master_write1_seq.svh",
+        "tb/i2c_master_sequence_item.svh"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 1.0,
+      "mrr": 0.25,
+      "average_rank": 4.5,
+      "log_count": 3,
+      "rtl_count": 0,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_des_01",
+      "expected_chunk_ids": [
+        "rtl_uvm::README.md::markdown_section::2",
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::0"
+      ],
+      "retrieved_chunk_ids": [
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_top.sv",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_seq_lib/i2c_master_base_seq.svh",
+        "tb/i2c_master_sequence_item.svh",
+        "README.md",
+        "tb/i2c_master_coverage_collector.svh",
+        "tb/i2c_master_seq_lib/i2c_master_write2_seq.svh",
+        "sim/i2c_master_run.do",
+        "sim/coverage/code_coverage.txt"
+      ],
+      "top1_recall": 0.5,
+      "top3_recall": 0.5,
+      "top5_recall": 0.5,
+      "mrr": 1.0,
+      "average_rank": 1.0,
+      "log_count": 0,
+      "rtl_count": 3,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_des_02",
+      "expected_chunk_ids": [
+        "rtl_uvm::README.md::markdown_section::1",
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::0",
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::1",
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::2"
+      ],
+      "retrieved_chunk_ids": [
+        "README.md",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_sequence_item.svh",
+        "tb/i2c_master_coverage_collector.svh",
+        "README.md",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_agent/i2c_master_monitor.svh",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write2_test_log.log"
+      ],
+      "top1_recall": 0.25,
+      "top3_recall": 0.5,
+      "top5_recall": 0.5,
+      "mrr": 1.0,
+      "average_rank": 1.5,
+      "log_count": 1,
+      "rtl_count": 2,
+      "spec_count": 2
+    },
+    {
+      "query_id": "rtluvm_des_03",
+      "expected_chunk_ids": [
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::0"
+      ],
+      "retrieved_chunk_ids": [
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_sequence_item.svh",
+        "README.md",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.0,
+      "mrr": 0.0,
+      "average_rank": Infinity,
+      "log_count": 5,
+      "rtl_count": 2,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_des_04",
+      "expected_chunk_ids": [
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::1"
+      ],
+      "retrieved_chunk_ids": [
+        "rtl/i2c_master.sv",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_coverage_collector.svh",
+        "tb/i2c_master_sequence_item.svh",
+        "tb/i2c_master_scoreboard.svh",
+        "rtl/i2c_master.sv",
+        "sim/log/write1_test_log.log",
+        "tb/i2c_master_top.sv",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write2_test_log.log"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.0,
+      "mrr": 0.16666666666666666,
+      "average_rank": 6.0,
+      "log_count": 2,
+      "rtl_count": 4,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_des_05",
+      "expected_chunk_ids": [
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::2"
+      ],
+      "retrieved_chunk_ids": [
+        "rtl/i2c_master.sv",
+        "rtl/i2c_master.sv",
+        "rtl/i2c_master.sv",
+        "README.md",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_sequence_item.svh",
+        "tb/i2c_master_agent/i2c_master_driver.svh"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 0.3333333333333333,
+      "average_rank": 3.0,
+      "log_count": 2,
+      "rtl_count": 4,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_des_06",
+      "expected_chunk_ids": [
+        "rtl_uvm::README.md::markdown_section::3",
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::2"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_scoreboard.svh",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_environment.svh",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_coverage_collector.svh",
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write1_test_log.log"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.0,
+      "mrr": 0.16666666666666666,
+      "average_rank": 6.0,
+      "log_count": 4,
+      "rtl_count": 1,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_des_07",
+      "expected_chunk_ids": [
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::1"
+      ],
+      "retrieved_chunk_ids": [
+        "README.md",
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "tb/i2c_master_seq_lib/i2c_master_base_seq.svh",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_environment.svh",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_scoreboard.svh",
+        "tb/i2c_master_agent/i2c_master_monitor.svh",
+        "rtl/i2c_master.sv"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.0,
+      "mrr": 0.0,
+      "average_rank": Infinity,
+      "log_count": 0,
+      "rtl_count": 3,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_des_08",
+      "expected_chunk_ids": [
+        "rtl_uvm::README.md::markdown_section::0"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "tb/i2c_master_test_lib/i2c_master_base_test.svh",
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "tb/i2c_master_agent/i2c_master_monitor.svh",
+        "tb/i2c_master_coverage_collector.svh",
+        "README.md",
+        "rtl/i2c_master.sv"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.0,
+      "mrr": 0.14285714285714285,
+      "average_rank": 7.0,
+      "log_count": 0,
+      "rtl_count": 1,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_dbg_01",
+      "expected_chunk_ids": [
+        "rtl_uvm::sim/coverage/code_coverage.txt::generic_window::6",
+        "rtl_uvm::sim/coverage/code_coverage.txt::generic_window::7"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/fun_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "tb/i2c_master_param_pkg.sv",
+        "tb/i2c_master_coverage_collector.svh",
+        "sim/i2c_master_run.do",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log"
+      ],
+      "top1_recall": 0.5,
+      "top3_recall": 0.5,
+      "top5_recall": 1.0,
+      "mrr": 1.0,
+      "average_rank": 2.5,
+      "log_count": 2,
+      "rtl_count": 1,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_dbg_02",
+      "expected_chunk_ids": [
+        "rtl_uvm::sim/coverage/code_coverage.txt::generic_window::4",
+        "rtl_uvm::sim/coverage/code_coverage.txt::generic_window::7"
+      ],
+      "retrieved_chunk_ids": [
+        "rtl/i2c_master.sv",
+        "rtl/i2c_master.sv",
+        "sim/coverage/code_coverage.txt",
+        "tb/i2c_master_scoreboard.svh",
+        "sim/coverage/code_coverage.txt",
+        "tb/i2c_master_coverage_collector.svh",
+        "tb/i2c_master_sequence_item.svh",
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log",
+        "tb/i2c_master_coverage_collector.svh"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.0,
+      "mrr": 0.0,
+      "average_rank": Infinity,
+      "log_count": 2,
+      "rtl_count": 2,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_dbg_03",
+      "expected_chunk_ids": [
+        "rtl_uvm::sim/coverage/code_coverage.txt::generic_window::4"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/i2c_master_run.do",
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/fun_coverage.txt",
+        "sim/log/write2_test_log.log",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write1_test_log.log",
+        "tb/i2c_master_coverage_collector.svh",
+        "tb/i2c_master_coverage_collector.svh",
+        "tb/i2c_master_environment.svh"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.0,
+      "mrr": 0.0,
+      "average_rank": Infinity,
+      "log_count": 2,
+      "rtl_count": 0,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_dbg_04",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_scoreboard.svh::generic_window::0"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log",
+        "sim/log/write1_test_log.log",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_scoreboard.svh",
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_coverage_collector.svh",
+        "rtl/i2c_master.sv"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.0,
+      "mrr": 0.16666666666666666,
+      "average_rank": 6.0,
+      "log_count": 6,
+      "rtl_count": 1,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_dbg_05",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_scoreboard.svh::generic_window::1"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_scoreboard.svh",
+        "tb/i2c_master_scoreboard.svh",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/coverage/code_coverage.txt",
+        "tb/i2c_master_coverage_collector.svh",
+        "rtl/i2c_master.sv",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_sequence_item.svh",
+        "sim/coverage/code_coverage.txt"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 0.5,
+      "average_rank": 2.0,
+      "log_count": 2,
+      "rtl_count": 2,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_dbg_06",
+      "expected_chunk_ids": [
+        "rtl_uvm::sim/log/write1_test_log.log::log::205"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_test_lib/i2c_master_write1_test.svh",
+        "tb/i2c_master_test_lib/i2c_master_base_test.svh",
+        "tb/i2c_master_test_lib/i2c_master_write2_test.svh",
+        "tb/i2c_master_top.sv",
+        "sim/i2c_master_run.do",
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 0.5,
+      "average_rank": 2.0,
+      "log_count": 4,
+      "rtl_count": 1,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_dbg_07",
+      "expected_chunk_ids": [
+        "rtl_uvm::sim/log/write1_test_log.log::log::205",
+        "rtl_uvm::sim/log/write1_test_log.log::log::22",
+        "rtl_uvm::sim/log/write1_test_log.log::log::24",
+        "rtl_uvm::sim/log/write1_test_log.log::log::26"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_scoreboard.svh",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_agent/i2c_master_monitor.svh",
+        "rtl/i2c_master.sv",
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write1_test_log.log",
+        "README.md"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.25,
+      "top5_recall": 0.25,
+      "mrr": 0.5,
+      "average_rank": 2.0,
+      "log_count": 3,
+      "rtl_count": 2,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_dbg_08",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_agent/i2c_master_driver.svh::generic_window::0"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "README.md",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log"
+      ],
+      "top1_recall": 1.0,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 1.0,
+      "average_rank": 1.0,
+      "log_count": 4,
+      "rtl_count": 2,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_asr_01",
+      "expected_chunk_ids": [
+        "rtl_uvm::sim/coverage/assertions.txt::generic_window::0"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_scoreboard.svh",
+        "tb/i2c_master_test_lib/i2c_master_write2_test.svh",
+        "tb/i2c_master_test_lib/i2c_master_write1_test.svh",
+        "sim/i2c_master_run.do",
+        "sim/log/write2_test_log.log",
+        "sim/coverage/assertions.txt",
+        "sim/log/write1_test_log.log",
+        "tb/i2c_master_seq_lib/i2c_master_write1_seq.svh",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_seq_lib/i2c_master_write2_seq.svh"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.0,
+      "mrr": 0.16666666666666666,
+      "average_rank": 6.0,
+      "log_count": 2,
+      "rtl_count": 1,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_asr_02",
+      "expected_chunk_ids": [
+        "rtl_uvm::sim/coverage/assertions.txt::generic_window::0",
+        "rtl_uvm::tb/i2c_master_seq_lib/i2c_master_write1_seq.svh::generic_window::0",
+        "rtl_uvm::tb/i2c_master_seq_lib/i2c_master_write2_seq.svh::generic_window::0"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_seq_lib/i2c_master_base_seq.svh",
+        "tb/i2c_master_seq_lib/i2c_master_write1_seq.svh",
+        "tb/i2c_master_seq_lib/i2c_master_write2_seq.svh",
+        "tb/i2c_master_sequence_item.svh",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_scoreboard.svh",
+        "sim/coverage/assertions.txt",
+        "sim/coverage/code_coverage.txt"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.6666666666666666,
+      "mrr": 0.25,
+      "average_rank": 6.0,
+      "log_count": 2,
+      "rtl_count": 1,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_asr_03",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_coverage_collector.svh::generic_window::0"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_coverage_collector.svh",
+        "sim/coverage/fun_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "tb/i2c_master_pkg.sv",
+        "tb/i2c_master_agent/i2c_master_agent_pkg.sv",
+        "tb/i2c_master_param_pkg.sv",
+        "tb/i2c_master_seq_lib/i2c_master_seq_pkg.sv",
+        "tb/i2c_master_sequence_item.svh"
+      ],
+      "top1_recall": 1.0,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 1.0,
+      "average_rank": 1.0,
+      "log_count": 0,
+      "rtl_count": 4,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_asr_04",
+      "expected_chunk_ids": [
+        "rtl_uvm::sim/coverage/fun_coverage.txt::generic_window::0",
+        "rtl_uvm::sim/coverage/fun_coverage.txt::generic_window::1"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/coverage/code_coverage.txt",
+        "tb/i2c_master_coverage_collector.svh",
+        "sim/coverage/fun_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write2_test_log.log",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_sequence_item.svh",
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.5,
+      "top5_recall": 0.5,
+      "mrr": 0.3333333333333333,
+      "average_rank": 3.0,
+      "log_count": 1,
+      "rtl_count": 1,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_asr_05",
+      "expected_chunk_ids": [
+        "rtl_uvm::sim/coverage/assertions.txt::generic_window::0",
+        "rtl_uvm::tb/i2c_master_seq_lib/i2c_master_write1_seq.svh::generic_window::0",
+        "rtl_uvm::tb/i2c_master_seq_lib/i2c_master_write2_seq.svh::generic_window::0"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_seq_lib/i2c_master_write1_seq.svh",
+        "tb/i2c_master_seq_lib/i2c_master_write2_seq.svh",
+        "tb/i2c_master_seq_lib/i2c_master_base_seq.svh",
+        "tb/i2c_master_sequence_item.svh",
+        "tb/i2c_master_scoreboard.svh",
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "sim/log/write1_test_log.log"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.6666666666666666,
+      "mrr": 0.25,
+      "average_rank": 4.5,
+      "log_count": 4,
+      "rtl_count": 0,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_bus_01",
+      "expected_chunk_ids": [
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::0",
+        "rtl_uvm::rtl/i2c_master.sv::sv_module_signature::i2c_master"
+      ],
+      "retrieved_chunk_ids": [
+        "rtl/i2c_master.sv",
+        "README.md",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_sequence_item.svh",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "tb/i2c_master_agent/i2c_master_monitor.svh",
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh",
+        "tb/i2c_master_scoreboard.svh"
+      ],
+      "top1_recall": 0.5,
+      "top3_recall": 0.5,
+      "top5_recall": 0.5,
+      "mrr": 1.0,
+      "average_rank": 1.0,
+      "log_count": 2,
+      "rtl_count": 2,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_bus_02",
+      "expected_chunk_ids": [
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::1",
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::2",
+        "rtl_uvm::rtl/i2c_master.sv::sv_module_signature::i2c_master"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_sequence_item.svh",
+        "sim/log/write1_test_log.log",
+        "sim/coverage/code_coverage.txt"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.0,
+      "mrr": 0.0,
+      "average_rank": Infinity,
+      "log_count": 4,
+      "rtl_count": 1,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_bus_03",
+      "expected_chunk_ids": [
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::0",
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::1",
+        "rtl_uvm::rtl/i2c_master.sv::sv_module_signature::i2c_master"
+      ],
+      "retrieved_chunk_ids": [
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_if.sv",
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "tb/i2c_master_sequence_item.svh",
+        "tb/i2c_master_top.sv",
+        "README.md",
+        "tb/i2c_master_coverage_collector.svh",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "sim/log/write2_test_log.log"
+      ],
+      "top1_recall": 0.3333333333333333,
+      "top3_recall": 0.3333333333333333,
+      "top5_recall": 0.3333333333333333,
+      "mrr": 1.0,
+      "average_rank": 1.0,
+      "log_count": 1,
+      "rtl_count": 3,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_bus_04",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_seq_lib/i2c_master_write1_seq.svh::generic_window::0",
+        "rtl_uvm::tb/i2c_master_seq_lib/i2c_master_write2_seq.svh::generic_window::0",
+        "rtl_uvm::tb/i2c_master_sequence_item.svh::generic_window::0"
+      ],
+      "retrieved_chunk_ids": [
+        "rtl/i2c_master.sv",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_sequence_item.svh",
+        "tb/i2c_master_coverage_collector.svh",
+        "tb/i2c_master_scoreboard.svh",
+        "tb/i2c_master_seq_lib/i2c_master_write2_seq.svh",
+        "tb/i2c_master_seq_lib/i2c_master_write1_seq.svh",
+        "README.md",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write1_test_log.log"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.3333333333333333,
+      "top5_recall": 0.3333333333333333,
+      "mrr": 0.3333333333333333,
+      "average_rank": 5.333333333333333,
+      "log_count": 1,
+      "rtl_count": 2,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_bus_05",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_param_pkg.sv::sv_package::i2c_master_param_pkg",
+        "rtl_uvm::tb/i2c_master_test_lib/i2c_master_write1_test.svh::generic_window::0",
+        "rtl_uvm::tb/i2c_master_test_lib/i2c_master_write2_test.svh::generic_window::0"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/log/write1_test_log.log",
+        "sim/i2c_master_run.do",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write2_test_log.log",
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "tb/i2c_master_coverage_collector.svh",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_test_lib/i2c_master_write2_test.svh"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.0,
+      "mrr": 0.1,
+      "average_rank": 10.0,
+      "log_count": 2,
+      "rtl_count": 1,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_bus_06",
+      "expected_chunk_ids": [
+        "rtl_uvm::rtl/i2c_master.sv::sv_module_signature::i2c_master"
+      ],
+      "retrieved_chunk_ids": [
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_param_pkg.sv",
+        "tb/i2c_master_env_config.svh",
+        "tb/i2c_master_coverage_collector.svh",
+        "sim/coverage/code_coverage.txt",
+        "sim/i2c_master_run.do",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_pkg.sv",
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "README.md"
+      ],
+      "top1_recall": 1.0,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 1.0,
+      "average_rank": 1.0,
+      "log_count": 0,
+      "rtl_count": 4,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_uvm_01",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_environment.svh::generic_window::0",
+        "rtl_uvm::tb/i2c_master_environment.svh::generic_window::1"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log",
+        "tb/i2c_master_environment.svh",
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh",
+        "tb/i2c_master_agent/i2c_master_monitor.svh",
+        "tb/i2c_master_test_lib/i2c_master_base_test.svh",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.5,
+      "top5_recall": 0.5,
+      "mrr": 0.3333333333333333,
+      "average_rank": 3.0,
+      "log_count": 4,
+      "rtl_count": 0,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_uvm_02",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_env_config.svh::generic_window::0",
+        "rtl_uvm::tb/i2c_master_test_lib/i2c_master_base_test.svh::generic_window::0",
+        "rtl_uvm::tb/i2c_master_top.sv::sv_module::i2c_master_top"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_top.sv",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_test_lib/i2c_master_test_pkg.sv",
+        "tb/i2c_master_test_lib/i2c_master_base_test.svh",
+        "tb/i2c_master_agent/i2c_master_monitor.svh",
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "sim/log/write2_test_log.log"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.3333333333333333,
+      "top5_recall": 0.3333333333333333,
+      "mrr": 0.5,
+      "average_rank": 4.0,
+      "log_count": 4,
+      "rtl_count": 2,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_uvm_03",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_agent/i2c_master_agent.svh::generic_window::0",
+        "rtl_uvm::tb/i2c_master_agent/i2c_master_agent_config.svh::generic_window::0"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_agent/i2c_master_agent_pkg.sv",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_agent/i2c_master_agent_config.svh",
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "README.md",
+        "sim/log/write2_test_log.log"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.5,
+      "mrr": 0.2,
+      "average_rank": 5.5,
+      "log_count": 1,
+      "rtl_count": 3,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_uvm_04",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_param_pkg.sv::sv_package::i2c_master_param_pkg",
+        "rtl_uvm::tb/i2c_master_top.sv::sv_module::i2c_master_top"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_top.sv",
+        "README.md",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_test_lib/i2c_master_test_pkg.sv",
+        "tb/i2c_master_param_pkg.sv",
+        "tb/i2c_master_seq_lib/i2c_master_seq_pkg.sv",
+        "rtl/i2c_master.sv",
+        "tb/i2c_master_pkg.sv"
+      ],
+      "top1_recall": 0.5,
+      "top3_recall": 0.5,
+      "top5_recall": 0.5,
+      "mrr": 1.0,
+      "average_rank": 4.0,
+      "log_count": 2,
+      "rtl_count": 7,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_uvm_05",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_agent/i2c_master_monitor.svh::generic_window::1",
+        "rtl_uvm::tb/i2c_master_agent/i2c_master_stat_monitor.svh::generic_window::0"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_agent/i2c_master_monitor.svh",
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh",
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "tb/i2c_master_coverage_collector.svh",
+        "tb/i2c_master_coverage_collector.svh",
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log"
+      ],
+      "top1_recall": 0.5,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 1.0,
+      "average_rank": 1.5,
+      "log_count": 5,
+      "rtl_count": 0,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_uvm_06",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_agent/i2c_master_agent_pkg.sv::sv_package::i2c_master_agent_pkg",
+        "rtl_uvm::tb/i2c_master_pkg.sv::sv_package::i2c_master_pkg",
+        "rtl_uvm::tb/i2c_master_seq_lib/i2c_master_seq_pkg.sv::sv_package::i2c_master_seq_pkg",
+        "rtl_uvm::tb/i2c_master_test_lib/i2c_master_test_pkg.sv::sv_package::i2c_master_test_pkg"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_pkg.sv",
+        "tb/i2c_master_test_lib/i2c_master_test_pkg.sv",
+        "tb/i2c_master_seq_lib/i2c_master_seq_pkg.sv",
+        "tb/i2c_master_agent/i2c_master_agent_pkg.sv",
+        "tb/i2c_master_param_pkg.sv",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_sequence_item.svh",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log"
+      ],
+      "top1_recall": 0.25,
+      "top3_recall": 0.75,
+      "top5_recall": 1.0,
+      "mrr": 1.0,
+      "average_rank": 2.5,
+      "log_count": 4,
+      "rtl_count": 5,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_log_01",
+      "expected_chunk_ids": [
+        "rtl_uvm::sim/log/write1_test_log.log::log::0"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log",
+        "tb/i2c_master_test_lib/i2c_master_write1_test.svh",
+        "sim/i2c_master_run.do",
+        "tb/i2c_master_test_lib/i2c_master_write2_test.svh",
+        "tb/i2c_master_top.sv",
+        "tb/i2c_master_test_lib/i2c_master_base_test.svh",
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.0,
+      "mrr": 0.0,
+      "average_rank": Infinity,
+      "log_count": 4,
+      "rtl_count": 1,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_log_02",
+      "expected_chunk_ids": [
+        "rtl_uvm::sim/log/write1_test_log.log::log::2"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log",
+        "tb/i2c_master_test_lib/i2c_master_write1_test.svh",
+        "tb/i2c_master_test_lib/i2c_master_base_test.svh",
+        "tb/i2c_master_seq_lib/i2c_master_write1_seq.svh",
+        "sim/i2c_master_run.do",
+        "tb/i2c_master_sequence_item.svh",
+        "sim/log/write2_test_log.log"
+      ],
+      "top1_recall": 1.0,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 1.0,
+      "average_rank": 1.0,
+      "log_count": 5,
+      "rtl_count": 0,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_log_03",
+      "expected_chunk_ids": [
+        "rtl_uvm::sim/log/write1_test_log.log::log::24"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_agent/i2c_master_monitor.svh",
+        "sim/log/write1_test_log.log",
+        "sim/log/write1_test_log.log",
+        "sim/log/write1_test_log.log"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.0,
+      "top5_recall": 0.0,
+      "mrr": 0.0,
+      "average_rank": Infinity,
+      "log_count": 6,
+      "rtl_count": 0,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_log_04",
+      "expected_chunk_ids": [
+        "rtl_uvm::sim/log/write2_test_log.log::log::205"
+      ],
+      "retrieved_chunk_ids": [
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write2_test_log.log",
+        "sim/log/write1_test_log.log",
+        "tb/i2c_master_test_lib/i2c_master_write2_test.svh",
+        "sim/i2c_master_run.do",
+        "tb/i2c_master_top.sv",
+        "tb/i2c_master_test_lib/i2c_master_write1_test.svh",
+        "tb/i2c_master_test_lib/i2c_master_base_test.svh",
+        "tb/i2c_master_agent/i2c_master_stat_monitor.svh"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 0.5,
+      "average_rank": 2.0,
+      "log_count": 4,
+      "rtl_count": 1,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_term_01",
+      "expected_chunk_ids": [
+        "rtl_uvm::README.md::markdown_section::0",
+        "rtl_uvm::rtl/i2c_master.sv::sv_module_signature::i2c_master"
+      ],
+      "retrieved_chunk_ids": [
+        "README.md",
+        "rtl/i2c_master.sv",
+        "rtl/i2c_master.sv",
+        "README.md",
+        "sim/coverage/code_coverage.txt",
+        "tb/i2c_master_top.sv",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_sequence_item.svh",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write2_test_log.log"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.5,
+      "top5_recall": 0.5,
+      "mrr": 0.3333333333333333,
+      "average_rank": 3.0,
+      "log_count": 1,
+      "rtl_count": 4,
+      "spec_count": 2
+    },
+    {
+      "query_id": "rtluvm_term_02",
+      "expected_chunk_ids": [
+        "rtl_uvm::README.md::markdown_section::0",
+        "rtl_uvm::rtl/i2c_master.sv::sv_body_window::i2c_master::1"
+      ],
+      "retrieved_chunk_ids": [
+        "rtl/i2c_master.sv",
+        "rtl/i2c_master.sv",
+        "README.md",
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_top.sv",
+        "tb/i2c_master_agent/i2c_master_agent.svh",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write2_test_log.log"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 0.5,
+      "average_rank": 2.5,
+      "log_count": 1,
+      "rtl_count": 4,
+      "spec_count": 1
+    },
+    {
+      "query_id": "rtluvm_term_03",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_sequence_item.svh::generic_window::0"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_sequence_item.svh",
+        "tb/i2c_master_seq_lib/i2c_master_base_seq.svh",
+        "tb/i2c_master_seq_lib/i2c_master_write1_seq.svh",
+        "tb/i2c_master_agent/i2c_master_sequencer.svh",
+        "tb/i2c_master_seq_lib/i2c_master_write2_seq.svh",
+        "tb/i2c_master_agent/i2c_master_agent_pkg.sv",
+        "sim/log/write1_test_log.log",
+        "sim/log/write1_test_log.log",
+        "sim/log/write1_test_log.log"
+      ],
+      "top1_recall": 1.0,
+      "top3_recall": 1.0,
+      "top5_recall": 1.0,
+      "mrr": 1.0,
+      "average_rank": 1.0,
+      "log_count": 3,
+      "rtl_count": 1,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_term_04",
+      "expected_chunk_ids": [
+        "rtl_uvm::sim/coverage/fun_coverage.txt::generic_window::0",
+        "rtl_uvm::tb/i2c_master_coverage_collector.svh::generic_window::0"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_coverage_collector.svh",
+        "sim/coverage/fun_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "sim/coverage/code_coverage.txt",
+        "tb/i2c_master_param_pkg.sv",
+        "tb/i2c_master_agent/i2c_master_agent_pkg.sv",
+        "tb/i2c_master_pkg.sv",
+        "tb/i2c_master_sequence_item.svh",
+        "sim/coverage/code_coverage.txt",
+        "sim/log/write1_test_log.log"
+      ],
+      "top1_recall": 0.0,
+      "top3_recall": 0.5,
+      "top5_recall": 0.5,
+      "mrr": 0.5,
+      "average_rank": 2.0,
+      "log_count": 1,
+      "rtl_count": 3,
+      "spec_count": 0
+    },
+    {
+      "query_id": "rtluvm_term_05",
+      "expected_chunk_ids": [
+        "rtl_uvm::tb/i2c_master_agent/i2c_master_driver.svh::generic_window::1",
+        "rtl_uvm::tb/i2c_master_if.sv::sv_module::i2c_master_if",
+        "rtl_uvm::tb/i2c_master_top.sv::sv_module::i2c_master_top"
+      ],
+      "retrieved_chunk_ids": [
+        "tb/i2c_master_if.sv",
+        "tb/i2c_master_top.sv",
+        "tb/i2c_master_agent/i2c_master_driver.svh",
+        "tb/i2c_master_agent/i2c_master_agent_config.svh",
+        "README.md",
+        "sim/log/write1_test_log.log",
+        "sim/log/write2_test_log.log",
+        "tb/i2c_master_test_lib/i2c_master_test_pkg.sv",
+        "tb/i2c_master_agent/i2c_master_agent_pkg.sv",
+        "sim/log/write2_test_log.log"
+      ],
+      "top1_recall": 0.3333333333333333,
+      "top3_recall": 0.6666666666666666,
+      "top5_recall": 0.6666666666666666,
+      "mrr": 1.0,
+      "average_rank": 1.5,
+      "log_count": 3,
+      "rtl_count": 4,
+      "spec_count": 1
+    }
+  ],
+  "failure_summary": {
+    "perfect": 19,
+    "partial": 18,
+    "failures": 13
+  }
+}

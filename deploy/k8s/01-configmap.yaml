@@ -1,0 +1,48 @@
+# Non-secret configuration. Override per-cluster via Kustomize patch or
+# `kubectl edit configmap semrag-config -n semrag`.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: semrag-config
+  namespace: semrag
+  labels:
+    app.kubernetes.io/name: semrag
+    app.kubernetes.io/component: config
+data:
+  # Database — password is interpolated by the API pod from the Secret.
+  # The host is the in-cluster Service DNS for postgres.
+  SEMRAG_DATABASE_URL: "postgresql+psycopg2://semrag:$(POSTGRES_PASSWORD)@postgres:5432/semrag"
+
+  # Logging.
+  SEMRAG_LOG_LEVEL: "INFO"
+  SEMRAG_LOG_FORMAT: "json"
+
+  # LLM and embedding provider. Defaults to the in-cluster Ollama
+  # Service; override for hosted providers.
+  SEMRAG_LLM_PROVIDER: "ollama"
+  SEMRAG_LLM_MODEL: "qwen2.5:7b"
+  SEMRAG_LLM_BASE_URL: "http://ollama:11434"
+  SEMRAG_LLM_NUM_PREDICT: "800"
+  SEMRAG_EMBEDDING_PROVIDER: "ollama"
+  SEMRAG_EMBEDDING_MODEL: "nomic-embed-text"
+  SEMRAG_EMBEDDING_BASE_URL: "http://ollama:11434"
+  SEMRAG_EMBEDDING_DIMENSION: "768"
+
+  # Cache / rate limiter backends. Point at the in-cluster redis
+  # Service when redis.enabled=true.
+  SEMRAG_QUERY_CACHE_BACKEND: "memory"
+  SEMRAG_RATE_LIMIT_BACKEND: "memory"
+
+  # Security.
+  SEMRAG_ENVIRONMENT: "production"
+  SEMRAG_API_KEY_STORE: "memory"
+  SEMRAG_TRUSTED_HOSTS: ""
+  SEMRAG_CORS_ORIGINS: ""
+  SEMRAG_REJECT_DEV_KEYS_IN_PRODUCTION: "true"
+  SEMRAG_MAX_BODY_SIZE: "5242880"
+
+  # Build metadata. SEMRAG_GIT_COMMIT is interpolated by CI from the
+  # actual git revision.
+  SEMRAG_GIT_COMMIT: ""
+  SEMRAG_BUILD_TIME: ""

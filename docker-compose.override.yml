@@ -1,0 +1,53 @@
+# Local development overrides.
+#
+# Merged automatically by `docker compose up` (no -f flag required).
+# Anything you set here overrides docker-compose.yml for local
+# development without editing the production file:
+#
+#   - Bind Postgres / Redis / Ollama ports to the host so you can
+#     connect with psql / redis-cli / curl from your workstation.
+#   - Mount the source tree into the API container so edits to Python
+#     files are picked up after a `docker compose restart api`.
+#   - Run uvicorn with --reload for hot reload.
+#
+# Anything you don't override (volumes, networks, healthchecks) is
+# inherited from docker-compose.yml.
+
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"   # already the default; kept explicit
+
+  redis:
+    profiles: []                 # Always-on in dev (drop the profile guard).
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  ollama:
+    profiles: []                 # Always-on in dev.
+    ports:
+      - "127.0.0.1:11434:11434"
+
+  api:
+    volumes:
+      # Hot reload. The semrag package is installed in editable-ish
+      # mode (pip install --no-deps) so changes to .py files in src/
+      # are visible inside the container after restart.
+      - ./src:/app/src:ro
+      - ./pyproject.toml:/app/pyproject.toml:ro
+    environment:
+      SEMRAG_ENVIRONMENT: "development"
+      SEMRAG_LOG_LEVEL: "DEBUG"
+      SEMRAG_LOG_FORMAT: "human"
+    command:
+      - "python"
+      - "-m"
+      - "uvicorn"
+      - "semrag.api.app:app"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+      - "--reload"
+    ports:
+      - "127.0.0.1:8000:8000"

@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "semrag.fullname" . }}-worker
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "semrag.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  {{- if not .Values.worker.autoscaling.enabled }}
+  replicas: {{ .Values.worker.replicaCount }}
+  {{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "semrag.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        {{- include "semrag.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.worker.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "semrag.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.worker.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: worker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Workers poll the persistent job store and run the indexing
+          # pipeline; they do not serve HTTP traffic.
+          command: ["python", "-m", "semrag.worker"]
+          env:
+            - name: SEMRAG_API_RUNS_WORKER
+              value: "false"
+            - name: SEMRAG_JOB_STORE_BACKEND
+              value: "database"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "semrag.secretName" . }}
+                  key: POSTGRES_PASSWORD
+            - name: SEMRAG_LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "semrag.secretName" . }}
+                  key: SEMRAG_LLM_API_KEY
+                  optional: true
+            - name: SEMRAG_EMBEDDING_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "semrag.secretName" . }}
+                  key: SEMRAG_EMBEDDING_API_KEY
+                  optional: true
+          envFrom:
+            - configMapRef:
+                name: {{ include "semrag.fullname" . }}
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "test -d /proc/1"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- end }}
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "semrag.fullname" . }}
+        {{- end }}

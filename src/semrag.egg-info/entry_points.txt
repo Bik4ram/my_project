@@ -1,0 +1,2 @@
+[console_scripts]
+semrag = semrag.cli:main
