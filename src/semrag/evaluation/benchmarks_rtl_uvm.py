@@ -1,7 +1,7 @@
 """Retrieval ground-truth benchmarks for the ``rtl_uvm`` project.
 
-Curated for the I2C master UVM testbench corpus at
-``/home/bikram/projects/RTL_UVM`` (rtl/, tb/, sim/, doc/). The
+Curated for the I2C master UVM testbench corpus in a project checkout with
+the conventional layout (``rtl/``, ``tb/``, ``sim/``, ``doc/``). The
 ``relevant_chunk_ids`` are taken verbatim from the deterministic chunk
 IDs produced by a fresh offline scan -> parse -> IR -> chunk run with
 the current code (467 chunks total, no embeddings, no retriever). Every

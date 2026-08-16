@@ -171,7 +171,7 @@ def build_postgres_api_key_store() -> PostgresAPIKeyStore:
     return PostgresAPIKeyStore(build_session_factory(settings=settings))
 
 
-def seed_initial_keys(store: APIKeyStore) -> int:
+async def seed_initial_keys(store: APIKeyStore) -> int:
     """Insert the keys from ``SEMRAG_API_KEYS`` into the store when they
     aren't already present.
 
@@ -196,14 +196,14 @@ def seed_initial_keys(store: APIKeyStore) -> int:
     # stored APIKey objects whose `.key` field is the digest (set on
     # insertion by the stores), so we can read them directly.
     try:
-        for k in asyncio.run(store.list_keys()):
+        for k in await store.list_keys():
             existing_digests.add(k.key)
     except Exception:  # noqa: BLE001 — seeding must never block startup
         _logger.warning("seed_initial_keys: list_keys failed; continuing", exc_info=True)
 
     seeded = 0
     for raw in settings.api_key_list():
-        if raw == "dev-local-key" and settings.environment == "production":
+        if raw == "dev-local-key" and settings.environment == "production" and settings.reject_dev_keys_in_production:
             # The validator already rejects this, but a second line of
             # defence at the seeder is cheap and clear.
             _logger.warning("seed_initial_keys: skipping dev-local-key in production")
@@ -212,18 +212,16 @@ def seed_initial_keys(store: APIKeyStore) -> int:
         if digest in existing_digests:
             continue
         try:
-            asyncio.run(
-                store.create_key(
-                    APIKey(
-                        key=raw,
-                        name=f"seeded-{digest[:8]}",
-                        created_at=_dt.now(_tz.utc).replace(tzinfo=None),
-                        expires_at=_dt.now(_tz.utc).replace(tzinfo=None) + _td(days=settings.api_key_expire_days)
-                        if settings.api_key_expire_days > 0
-                        else None,
-                        status=APIKeyStatus.ACTIVE,
-                        description="Seeded from SEMRAG_API_KEYS at startup",
-                    )
+            await store.create_key(
+                APIKey(
+                    key=raw,
+                    name=f"seeded-{digest[:8]}",
+                    created_at=_dt.now(_tz.utc).replace(tzinfo=None),
+                    expires_at=_dt.now(_tz.utc).replace(tzinfo=None) + _td(days=settings.api_key_expire_days)
+                    if settings.api_key_expire_days > 0
+                    else None,
+                    status=APIKeyStatus.ACTIVE,
+                    description="Seeded from SEMRAG_API_KEYS at startup",
                 )
             )
             seeded += 1

@@ -99,17 +99,18 @@ class Settings(BaseSettings):
         "vllm",
         "mock",
     ] = "ollama"
-    llm_model: str = "qwen2.5:7b"
+    llm_model: str = "qwen3-coder:30b"
     llm_base_url: str = "http://localhost:11434"
     llm_api_key: str | None = None
-    # Per-call HTTP timeout. 180 s covers a heavy multi-hop generation
-    # from a local 7B-class model (measured ~130 s end-to-end for a
-    # 4–6k-token prompt); a 90 s cap made the /answer endpoint fail
-    # reproducibly (500, read timeout) on exactly those queries even
-    # after the built-in retry. The agent loop is bounded by
+    # Per-call HTTP timeout. 300 s covers a heavy generation from a local
+    # 4B-class model on a small GPU: qwen3:4b with the real ~2.7k-token RAG
+    # prompt generates ~1.5k tokens at ~8 tok/s on an RTX 3050 (measured
+    # ~180-250 s end-to-end). A 180 s cap made the /answer endpoint fail
+    # reproducibly (500, read timeout) on exactly those queries even after
+    # the built-in retry. The agent loop is bounded by
     # ``llm_max_iterations``, not a wall-clock budget, so a single slow
     # call no longer blows an overall query budget.
-    llm_timeout_seconds: float = 180.0
+    llm_timeout_seconds: float = 300.0
     # Default 2 (was 3). Three attempts with exponential backoff can
     # burn 7+ seconds waiting on a stuck server before giving up; two
     # attempts is enough to ride out a single transient hiccup.
@@ -120,14 +121,33 @@ class Settings(BaseSettings):
     # system prompt, history, and reserved-for-response headroom).
     llm_context_window: int = 8192
     llm_reserved_for_response: int = 1024
-    # Hard cap on tokens the LLM may emit per call. Without this, qwen2.5:7b
-    # happily generates 2-3k tokens for an "explain this" prompt, taking
-    # 60+ seconds on CPU. 800 is enough for a grounded 4-6 bullet answer
-    # with citations — anything more is usually the model looping or
-    # expanding the same point. Sent to Ollama as ``options.num_predict``
-    # (qwen 7B averages ~30 tok/s, so 800 tokens = ~27s ceiling; the actual
-    # answer usually comes in 200-400 tokens).
-    llm_num_predict: int = 800
+    # Hard cap on tokens the LLM may emit per call. Without this, a local
+    # model happily generates 2-3k tokens for an "explain this" prompt,
+    # taking 60+ seconds on CPU. 2048 is enough for a grounded 4-6 bullet
+    # answer with citations AND the thinking phase of a reasoning model
+    # (qwen3-class): a Qwen3 answer spends its first ~1-1.5k tokens in the
+    # ``thinking`` field, and a cap of 800 exhausted that budget before the
+    # model wrote any content, terminating with ``done_reason="length"`` and
+    # ``content=""``. 2048 covers thinking + a real answer; anything more is
+    # usually the model looping. Sent to Ollama as ``options.num_predict``
+    # (qwen3:4b on a 4GB RTX 3050 averages ~25-30 tok/s, so 2048 tokens =
+    # ~70-80s ceiling; well within ``llm_timeout_seconds``).
+    llm_num_predict: int = 2048
+    # Ollama top-level ``think`` flag for reasoning models (Qwen3 etc.).
+    # Ollama 0.32.x sends thinking output in ``message.thinking``, which
+    # consumes the ``num_predict`` budget BEFORE any ``content`` is emitted;
+    # on budget exhaustion the response is ``done_reason="length"`` with
+    # ``content=""`` and the whole answer is lost. ``llm_num_predict``
+    # (above) provides the headroom. Keeping thinking ENABLED is the right
+    # default: the reasoning stays in the ``thinking`` field so ``content``
+    # stays clean — which the coding agent's strict-JSON steps depend on.
+    # (Disabling thinking makes a small model narrate its reasoning as
+    # prose *inside* ``content`` instead, which can swallow a JSON-contract
+    # response.) Set to false only if you want to trade that away for
+    # lower latency. Ollama ignores this field for models without a
+    # thinking capability. Sent as the top-level ``think`` request field
+    # (``options.think`` is silently ignored on Ollama 0.32.x).
+    llm_ollama_think: bool = True
     # Whether to probe the LLM endpoint at startup (fail-fast on bad
     # configuration). Disable in test environments that swap providers
     # via mocks.
@@ -273,6 +293,21 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 60
     query_cache_ttl_seconds: int = 300
     embedding_provider_dir: str = "/tmp/semrag_embedding_providers"
+
+    # ------------------------------------------------------------------
+    # Project paths (portable multi-root configuration)
+    # ------------------------------------------------------------------
+    # Authoritative roots for the RTL, testbench, and documentation areas.
+    # They are independent: each may live anywhere on disk, and they do NOT
+    # need to share a parent directory. When any of the three is configured,
+    # the backend operates on that project context (see
+    # ``core.project_paths.ProjectPaths``). ``SEMRAG_PROJECT_ID`` gives the
+    # project an explicit logical id; when unset it is derived from the
+    # deepest common ancestor of the configured roots.
+    rtl_root: str | None = None
+    tb_root: str | None = None
+    docs_root: str | None = None
+    project_id: str | None = None
 
     # ------------------------------------------------------------------
     # Security
@@ -437,6 +472,23 @@ class Settings(BaseSettings):
             # But we will resolve symlinks and check for traversal at use time.
             result.append(str(p))
         return result
+
+    @field_validator("rtl_root", "tb_root", "docs_root", mode="before")
+    @classmethod
+    def _normalize_area_root(cls, v):
+        # Area roots are optional; when set they must be absolute so
+        # ``core.project_paths`` never resolves a cwd-relative surprise.
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        from pathlib import Path
+
+        p = Path(v)
+        if not p.is_absolute():
+            raise ValueError(
+                f"Project area root must be an absolute path: {v} "
+                "(set SEMRAG_RTL_ROOT / SEMRAG_TB_ROOT / SEMRAG_DOCS_ROOT)"
+            )
+        return str(p)
 
     # We'll add a model validator to check the api_keys and environment together
     @model_validator(mode="after")

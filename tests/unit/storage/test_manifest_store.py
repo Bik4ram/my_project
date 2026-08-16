@@ -64,6 +64,38 @@ def test_save_and_retrieve_roundtrip(db_session):
     assert retrieved.git_metadata.current_branch == "main"
 
 
+def test_area_roots_roundtrip_through_manifest(db_session):
+    store = PostgresManifestStore(db_session)
+    manifest = _manifest("scan-1", {"rtl/i2c_master.sv": _file_record("rtl/i2c_master.sv")})
+    manifest.rtl_root = "/srv/rtl"
+    manifest.tb_root = "/srv/tb"
+    manifest.docs_root = "/srv/docs"
+
+    store.save_manifest(manifest)
+    db_session.flush()
+
+    retrieved = store.get_latest_manifest("proj1")
+    assert retrieved.rtl_root == "/srv/rtl"
+    assert retrieved.tb_root == "/srv/tb"
+    assert retrieved.docs_root == "/srv/docs"
+
+
+def test_legacy_save_does_not_clobber_area_roots(db_session):
+    store = PostgresManifestStore(db_session)
+    multi = _manifest("scan-1", {"rtl/top.sv": _file_record("rtl/top.sv")})
+    multi.rtl_root = "/srv/rtl"
+    store.save_manifest(multi)
+    db_session.flush()
+
+    # A later legacy single-root save (area roots None) must not erase them.
+    legacy = _manifest("scan-2", {"RTL/top.sv": _file_record("RTL/top.sv")})
+    store.save_manifest(legacy)
+    db_session.flush()
+
+    retrieved = store.get_latest_manifest("proj1")
+    assert retrieved.rtl_root == "/srv/rtl"
+
+
 def test_second_scan_updates_modified_file(db_session):
     store = PostgresManifestStore(db_session)
     files_v1 = {"RTL/i2c_master.sv": _file_record("RTL/i2c_master.sv", content_hash="hash_v1")}

@@ -102,6 +102,13 @@ class ScanManifest(BaseModel):
     scan_id: str
     project_id: str
     root_path: str
+    # Optional authoritative area roots (multi-root / portable projects).
+    # For a multi-root scan these are the roots each area-prefixed
+    # ``relative_path`` maps back to; for a legacy single-root scan all
+    # three stay ``None`` and ``root_path`` alone carries the layout.
+    rtl_root: Optional[str] = None
+    tb_root: Optional[str] = None
+    docs_root: Optional[str] = None
     started_at: datetime
     completed_at: Optional[datetime] = None
     git_metadata: GitRepositoryMetadata

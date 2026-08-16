@@ -55,6 +55,9 @@ class IndexingJobRow(_JobBase):
         default=dict,
     )
     root_path: Mapped[str] = mapped_column(String, nullable=False, default="")
+    rtl_root: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    tb_root: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    docs_root: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # created_at is the queueing time; useful for oldest-job queries and
@@ -78,6 +81,9 @@ def _row_to_job(row: IndexingJobRow) -> Job:
         error=row.error,
         statistics=dict(row.statistics or {}),
         root_path=row.root_path or "",
+        rtl_root=row.rtl_root,
+        tb_root=row.tb_root,
+        docs_root=row.docs_root,
         retry_count=row.retry_count,
     )
 
@@ -123,6 +129,9 @@ class PostgresJobStore(JobStore):
                     error=job.error,
                     statistics=dict(job.statistics or {}),
                     root_path=job.root_path,
+                    rtl_root=job.rtl_root,
+                    tb_root=job.tb_root,
+                    docs_root=job.docs_root,
                     retry_count=job.retry_count,
                 )
             )

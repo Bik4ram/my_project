@@ -22,6 +22,7 @@ Requires-Dist: requests
 Requires-Dist: fastapi
 Requires-Dist: uvicorn[standard]
 Requires-Dist: sse-starlette
+Requires-Dist: redis>=4.2
 Provides-Extra: dev
 Requires-Dist: pytest; extra == "dev"
 Requires-Dist: reportlab; extra == "dev"
@@ -31,3 +32,4 @@ Requires-Dist: black; extra == "dev"
 Requires-Dist: mypy; extra == "dev"
 Requires-Dist: coverage; extra == "dev"
 Requires-Dist: pip-tools; extra == "dev"
+Requires-Dist: fakeredis[lua]; extra == "dev"

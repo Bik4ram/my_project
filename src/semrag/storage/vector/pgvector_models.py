@@ -57,6 +57,11 @@ class ChunkRow(Base):
     parser_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     chunker_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     symbol_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    # Portable multi-root metadata: which area a chunk's source file
+    # belongs to ('rtl'/'tb'/'docs') and that area's absolute root. NULL
+    # for legacy single-root projects (source_type defaults to '').
+    source_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    source_root: Mapped[str | None] = mapped_column(String, nullable=True)
     embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIMENSION), nullable=False)
     # Generated column (Postgres computes and maintains this automatically
     # on every insert/update — never written to directly) backing Part 10's

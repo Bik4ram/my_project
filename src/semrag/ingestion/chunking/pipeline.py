@@ -46,18 +46,28 @@ def build_default_registry() -> ChunkerRegistry:
     return registry
 
 
-def _enrich_chunk(chunk: Chunk, record: FileRecord, parse_result: ParseResult | None) -> Chunk:
+def _enrich_chunk(
+    chunk: Chunk,
+    record: FileRecord,
+    parse_result: ParseResult | None,
+    source_type: str = "",
+    source_root: str | None = None,
+) -> Chunk:
     """Fill in RI-06 metadata centrally, once, using the canonical single
     source for each field — never recalculated downstream: language from
     the scanner's extension mapping, category from the existing Source
     Authority classifier (reused, not duplicated), parser from the
     ParseResult that actually ran. ``chunker_name`` is already stamped by
-    the registry; ``symbol_name`` by the chunkers."""
+    the registry; ``symbol_name`` by the chunkers. ``source_type`` /
+    ``source_root`` come from the caller's ``ProjectPaths`` when a
+    multi-root project is being indexed ('' / None for legacy single-root)."""
     return chunk.model_copy(
         update={
             "language": language_for_extension(record.relative_path),
             "category": classify_document(chunk.chunk_type, chunk.relative_path),
             "parser_name": parse_result.parser_name if parse_result else None,
+            "source_type": source_type,
+            "source_root": source_root,
         }
     )
 
@@ -69,20 +79,26 @@ def chunk_project(
     ir_graph: IRGraph,
     registry: ChunkerRegistry | None = None,
     max_workers: int = 1,
+    project_paths=None,
 ) -> list[Chunk]:
     """Chunk every file in the project. ``max_workers=1`` keeps behavior
     identical to the original sequential pass; values >1 run reads and
     chunking across a thread pool — disk I/O bound, threads (not
-    processes) avoid pickling overhead."""
+    processes) avoid pickling overhead. ``project_paths`` (a
+    ``core.project_paths.ProjectPaths``) is optional; when provided the
+    chunks are stamped with the source area type/root for multi-root
+    projects."""
     registry = registry or build_default_registry()
-    root = Path(root_path).resolve()
 
     nodes_by_path: dict[str, list] = {}
     for node in ir_graph.nodes.values():
         nodes_by_path.setdefault(node.relative_path, []).append(node)
 
     def chunk_one(relative_path: str, record: FileRecord) -> list[Chunk]:
-        absolute_path = root / relative_path
+        # The scanner's absolute_path is authoritative for every project
+        # shape — a legacy single-root project resolves under ``root``,
+        # a multi-root project resolves under the appropriate area root.
+        absolute_path = Path(record.absolute_path)
         parse_result = parse_results.get(relative_path)
         ir_nodes = nodes_by_path.get(relative_path, [])
 
@@ -103,8 +119,19 @@ def chunk_project(
         except (FileNotFoundError, PermissionError):
             return []
 
+        source_type = ""
+        source_root = None
+        if project_paths is not None:
+            area = project_paths.area_for(absolute_path)
+            if area is not None:
+                source_type = area
+                source_root = str(project_paths.roots()[area])
+
         chunks = registry.chunk_file(record, parse_result, file_text, ir_nodes)
-        return [_enrich_chunk(c, record, parse_result) for c in chunks]
+        return [
+            _enrich_chunk(c, record, parse_result, source_type, source_root)
+            for c in chunks
+        ]
 
     items = list(file_records.items())
     if max_workers <= 1 or len(items) <= 1:

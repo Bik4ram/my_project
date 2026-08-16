@@ -16,13 +16,19 @@ tool). Blocked is never faked into a pass.
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from semrag.validation.config import TrustedExternalDep, ValidationConfig
+from semrag.core.project_paths import AREA_ORDER, ProjectPathError
+from semrag.validation.config import (
+    TrustedExternalDep,
+    ValidationConfig,
+    validation_config_dir,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,12 +86,51 @@ def _require_within_root(root: Path, rel: str) -> Path:
     return resolved
 
 
+def _require_within_project(root: Path, project_paths, rel: str) -> Path:
+    """Resolve a project-relative path against a ``ProjectPaths``.
+
+    Supports three forms, so validation configs stay portable across
+    project shapes:
+
+    - Explicit area prefix: ``rtl:...`` / ``tb:...`` / ``docs:...``.
+    - Bare first-segment mapping: ``rtl/...`` / ``tb/...`` / ``docs/...``
+      resolve against the matching area root (the exact form stored in the
+      manifest for multi-root projects).
+    - Anything else resolves against the legacy ``root_path`` (or the
+      passed ``root`` working directory when the project has no
+      ``root_path``) — the pre-refactor single-root behaviour, unchanged.
+    """
+    if project_paths is None:
+        return _require_within_root(root, rel)
+
+    for area in AREA_ORDER:
+        if rel.startswith(f"{area}:"):
+            body = rel[len(f"{area}:"):]
+            try:
+                return project_paths.resolve_area(area, body)
+            except ProjectPathError as exc:
+                raise ValueError(str(exc)) from None
+
+    first, _, rest = rel.partition("/")
+    if first in AREA_ORDER and rest:
+        try:
+            return project_paths.resolve_area(first, rest)
+        except ProjectPathError as exc:
+            raise ValueError(str(exc)) from None
+
+    if project_paths.root_path is not None:
+        return _require_within_root(project_paths.root_path, rel)
+    return _require_within_root(root, rel)
+
+
 def _resolve_path(
     root: Path,
     deps: dict[str, TrustedExternalDep],
     entry: str,
     *,
     require_dir: bool,
+    config_dir: Path,
+    project_paths=None,
 ) -> Path:
     """Resolve a single incdir/file entry.
 
@@ -95,6 +140,16 @@ def _resolve_path(
     subpath must be relative and contain no ``..`` segments. An
     unconfigured external dep is rejected — external paths must be
     declared in the validation config, not supplied via the request body.
+
+    A dep's declared path may be:
+      - an absolute directory (unchanged),
+      - an absolute directory that uses ``$VAR`` / ``${VAR}`` environment
+        expansion (e.g. ``${SEMRAG_UVM_ROOT}`` so the UVM checkout stays
+        portable between machines), or
+      - a relative directory, resolved against the validation config
+        directory (e.g. ``stubs/rtl_uvm`` -> ``configs/validation/stubs/
+        rtl_uvm``). This keeps in-repo helper files portable without any
+        environment variables.
     """
     if entry.startswith(_EXTERNAL_PREFIX):
         body = entry[len(_EXTERNAL_PREFIX):]
@@ -110,15 +165,19 @@ def _resolve_path(
             raise ValueError(
                 f"external dep subpath escapes dep root: {entry!r}"
             )
-        resolved = (Path(dep.path) / sub_path).resolve()
+        expanded = os.path.expandvars(dep.path)
+        dep_root = Path(expanded)
+        if not dep_root.is_absolute():
+            dep_root = (config_dir / expanded).resolve()
+        resolved = (dep_root / sub_path).resolve()
         try:
-            resolved.relative_to(Path(dep.path).resolve())
+            resolved.relative_to(dep_root)
         except ValueError:
             raise ValueError(
                 f"external dep subpath escapes dep root: {entry!r}"
             ) from None
     else:
-        resolved = _require_within_root(root, entry)
+        resolved = _require_within_project(root, project_paths, entry)
 
     if require_dir:
         if not resolved.is_dir():
@@ -133,23 +192,33 @@ def _resolve_path(
     return resolved
 
 
-def build_argv(root: Path, config: ValidationConfig, target_name: str) -> list[str]:
+def build_argv(
+    root: Path,
+    config: ValidationConfig,
+    target_name: str,
+    project_paths=None,
+) -> list[str]:
     """Assemble the exact argv for a target from its config (no user input)."""
     target = config.targets[target_name]
 
     deps = {d.name: d for d in config.trusted_external_deps}
+    config_dir = validation_config_dir()
 
     argv = [config.tool, *target.tool_args]
 
     for incdir in target.incdirs:
-        resolved = _resolve_path(root, deps, incdir, require_dir=True)
+        resolved = _resolve_path(
+            root, deps, incdir, require_dir=True, config_dir=config_dir, project_paths=project_paths
+        )
         argv.append(f"+incdir+{resolved}")
 
     for define in target.defines:
         argv.append(f"-D{define}")
 
     for f in target.files:
-        resolved = _resolve_path(root, deps, f, require_dir=False)
+        resolved = _resolve_path(
+            root, deps, f, require_dir=False, config_dir=config_dir, project_paths=project_paths
+        )
         argv.append(str(resolved))
 
     return argv
@@ -177,12 +246,18 @@ def run_validation(
     config: ValidationConfig,
     target_name: str,
     log_output: bool = True,
+    project_paths=None,
 ) -> ValidationResult:
-    """Execute one validation target under ``root`` and classify the result."""
+    """Execute one validation target under ``root`` and classify the result.
+
+    ``project_paths`` (a ``core.project_paths.ProjectPaths``) is optional;
+    when provided, config incdirs/files are resolved against the area roots
+    (``rtl:``/``tb:``/``docs:`` prefixes and bare first-segment mapping)
+    instead of only against ``root``."""
     if target_name not in config.targets:
         raise KeyError(f"unknown validation target: {target_name}")
 
-    argv = build_argv(root, config, target_name)
+    argv = build_argv(root, config, target_name, project_paths=project_paths)
     command = " ".join(str(a) for a in argv)
 
     if shutil.which(config.tool) is None:

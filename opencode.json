@@ -1,5 +1,9 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "model": "ollama/qwen3-coder:30b",
+  "experimental": {
+    "mcp_timeout": 3600000
+  },
   "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
@@ -8,9 +12,34 @@
         "baseURL": "http://127.0.0.1:11434/v1"
       },
       "models": {
-        "qwen2.5:7b": {
-          "name": "Qwen 2.5 7B Local"
+        "qwen3-coder:30b": {
+          "name": "Qwen3 Coder 30B Local"
         }
+      }
+    }
+  },
+  "disabled_providers": [
+    "anthropic",
+    "openai",
+    "openrouter",
+    "google",
+    "groq",
+    "mistral",
+    "xai",
+    "deepseek"
+  ],
+  "mcp": {
+    "semrag": {
+      "type": "local",
+      "command": [
+        "./scripts/opencode_mcp_semrag.sh"
+      ],
+      "enabled": true,
+      "environment": {
+        "SEMRAG_URL": "http://127.0.0.1:8000",
+        "SEMRAG_API_KEY": "dev-local-key",
+        "SEMRAG_MCP_TIMEOUT_SECONDS": "7200",
+        "SEMRAG_MCP_INDEX_MAX_WAIT_SECONDS": "1800"
       }
     }
   }

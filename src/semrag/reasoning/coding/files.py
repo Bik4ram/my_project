@@ -12,6 +12,8 @@ import os
 import tempfile
 from pathlib import Path
 
+from semrag.core.project_paths import ProjectPathError
+
 MAX_WRITE_BYTES = 2 * 1024 * 1024  # 2 MiB cap, mirrors projects.py
 
 
@@ -24,8 +26,14 @@ class ProjectFileError(Exception):
         self.kind = kind
 
 
-def safe_resolve_target(root: Path, file_path: str) -> Path:
-    """Resolve a project-relative path inside ``root`` or raise."""
+def safe_resolve_target(root: Path, file_path: str, project_paths=None) -> Path:
+    """Resolve a project-relative path inside ``root`` or raise.
+
+    When ``project_paths`` (a ``core.project_paths.ProjectPaths``) is
+    provided, resolution goes through the area roots instead: ``rtl/...``,
+    ``tb/...``, ``docs/...`` map to the matching area root, everything else
+    to the legacy ``root_path``. The same absolute/``..``/NUL/symlink-escape
+    rejections apply in both modes."""
     if not file_path or not file_path.strip():
         raise ProjectFileError("path", "file_path must not be empty.")
     if "\x00" in file_path:
@@ -42,6 +50,12 @@ def safe_resolve_target(root: Path, file_path: str) -> Path:
             "path",
             f"file_path must not contain '..' traversal: {file_path}",
         )
+
+    if project_paths is not None:
+        try:
+            return project_paths.resolve_relative(file_path)
+        except ProjectPathError as exc:
+            raise ProjectFileError("path", str(exc)) from exc
 
     target = (root / raw).resolve()
     try:
@@ -85,9 +99,20 @@ def _atomic_write(target: Path, content: str, file_path: str) -> None:
         raise ProjectFileError("io", f"Failed to write {file_path}: {exc}") from exc
 
 
-def write_file(root: Path, file_path: str, content: str) -> dict:
-    """Create or replace a project file. Returns a small summary dict."""
-    target = safe_resolve_target(root, file_path)
+def write_file(
+    root: Path, file_path: str, content: str, project_paths=None
+) -> dict:
+    """Create or replace a project file. Returns a small summary dict.
+
+    When ``project_paths`` is provided the target must be inside a writable
+    area root (rtl/tb); the docs root is read-only."""
+    target = safe_resolve_target(root, file_path, project_paths=project_paths)
+    if project_paths is not None and not project_paths.is_write_allowed(target):
+        raise ProjectFileError(
+            "path",
+            f"Write target is not inside a writable project root (docs is "
+            f"read-only): {file_path}",
+        )
     existed = target.exists()
     _atomic_write(target, content, file_path)
     lines_written = content.count("\n") + (
@@ -103,10 +128,22 @@ def write_file(root: Path, file_path: str, content: str) -> dict:
     }
 
 
-def read_file(root: Path, file_path: str, start: int | None = None, end: int | None = None) -> str:
+def read_file(
+    root: Path,
+    file_path: str,
+    start: int | None = None,
+    end: int | None = None,
+    project_paths=None,
+) -> str:
     """Read a project file as UTF-8 text, optionally a line range
-    (1-indexed inclusive)."""
-    target = safe_resolve_target(root, file_path)
+    (1-indexed inclusive). When ``project_paths`` is provided the target
+    must be inside a configured root (including docs)."""
+    target = safe_resolve_target(root, file_path, project_paths=project_paths)
+    if project_paths is not None and not project_paths.is_read_allowed(target):
+        raise ProjectFileError(
+            "path",
+            f"File is outside every configured project root: {file_path}",
+        )
     if not target.is_file():
         raise ProjectFileError("not_found", f"File does not exist: {file_path}")
     try:
@@ -123,16 +160,30 @@ def read_file(root: Path, file_path: str, start: int | None = None, end: int | N
     return text
 
 
-def file_exists(root: Path, file_path: str) -> bool:
+def file_exists(root: Path, file_path: str, project_paths=None) -> bool:
     try:
-        return safe_resolve_target(root, file_path).is_file()
+        target = safe_resolve_target(root, file_path, project_paths=project_paths)
+        if project_paths is not None and not project_paths.is_read_allowed(target):
+            return False
+        return target.is_file()
     except ProjectFileError:
         return False
 
 
-def patch_file(root: Path, file_path: str, old_text: str, new_text: str) -> dict:
-    """Apply a single exact-text replacement that must match exactly once."""
-    target = safe_resolve_target(root, file_path)
+def patch_file(
+    root: Path, file_path: str, old_text: str, new_text: str, project_paths=None
+) -> dict:
+    """Apply a single exact-text replacement that must match exactly once.
+
+    When ``project_paths`` is provided the target must be inside a writable
+    area root (rtl/tb); the docs root is read-only."""
+    target = safe_resolve_target(root, file_path, project_paths=project_paths)
+    if project_paths is not None and not project_paths.is_write_allowed(target):
+        raise ProjectFileError(
+            "path",
+            f"Patch target is not inside a writable project root (docs is "
+            f"read-only): {file_path}",
+        )
     if not target.is_file():
         raise ProjectFileError("not_found", f"File does not exist: {file_path}")
     try:

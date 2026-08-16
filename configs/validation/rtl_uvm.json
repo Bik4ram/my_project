@@ -5,11 +5,11 @@
   "trusted_external_deps": [
     {
       "name": "uvm_core",
-      "path": "/home/bikram/projects/uvm-core/src"
+      "path": "${SEMRAG_UVM_ROOT}"
     },
     {
       "name": "sv_generated_lint_stubs",
-      "path": "/home/bikram/projects/semrag/configs/validation/stubs/rtl_uvm"
+      "path": "stubs/rtl_uvm"
     }
   ],
   "targets": {

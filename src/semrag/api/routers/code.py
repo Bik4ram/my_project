@@ -13,6 +13,7 @@ runner, no concurrency.
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -113,10 +114,25 @@ def run_coding_agent(
             detail=f"Project not found: {project_id}",
         )
 
+        from semrag.core.project_paths import ProjectPaths
+
+    project_paths = None
+    if project_row.rtl_root or project_row.tb_root or project_row.docs_root:
+        project_paths = ProjectPaths(
+            project_id=project_id,
+            root_path=(
+                Path(project_row.root_path).resolve() if project_row.root_path else None
+            ),
+            rtl_root=Path(project_row.rtl_root).resolve() if project_row.rtl_root else None,
+            tb_root=Path(project_row.tb_root).resolve() if project_row.tb_root else None,
+            docs_root=Path(project_row.docs_root).resolve() if project_row.docs_root else None,
+        )
+
     toolset = service.build_coding_toolset(
         project_id,
         project_row.root_path,
         job_manager,
+        project_paths=project_paths,
     )
     agent = CodingAgent(service._llm, toolset, settings, project_id=project_id)
     coding_request = CodingRequest(

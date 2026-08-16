@@ -45,6 +45,7 @@ class OllamaLLM(OpenAICompatibleLLM):
         timeout_seconds: float = 300.0,
         max_retries: int = 3,
         num_predict: int | None = None,
+        think: bool | None = None,
     ):
         super().__init__(base_url, model, api_key, timeout_seconds, max_retries)
         # Ollama's ``options.num_predict`` caps the number of tokens the
@@ -54,6 +55,15 @@ class OllamaLLM(OpenAICompatibleLLM):
         # keeps going). ``None`` means "let the model decide" — used by
         # tests; production sets this from ``Settings.llm_num_predict``.
         self._num_predict = num_predict
+        # Top-level ``think`` flag for reasoning models (Qwen3-class). A
+        # Qwen3 response spends its first ~1-1.5k ``num_predict`` tokens in
+        # ``message.thinking``; when that exhausts the budget the server
+        # returns ``done_reason="length"`` with ``content=""`` and the whole
+        # answer is lost. Disabling thinking keeps the budget on the actual
+        # answer. Sent as the top-level ``think`` request field — Ollama
+        # 0.32.x ignores ``options.think``. ``None`` means "don't send"
+        # (leave the server default), used by tests and non-Ollama models.
+        self._think = think
 
     @property
     def provider_name(self) -> str:
@@ -182,6 +192,13 @@ class OllamaLLM(OpenAICompatibleLLM):
         payload: dict = {"model": self._model, "messages": messages, "stream": stream}
         if tools:
             payload["tools"] = tools
+        if self._think is not None:
+            # Top-level field, not ``options.think``: Ollama 0.32.x ignores
+            # the option-namespaced spelling and only honors the request-
+            # level flag. Disabling thinking for Qwen3-class models stops
+            # their reasoning phase from burning the ``num_predict`` budget
+            # and returning ``content=""`` on budget exhaustion.
+            payload["think"] = self._think
         if self._num_predict is not None:
             # ``options.num_predict`` is the Ollama-native spelling of
             # OpenAI's ``max_tokens``. Capping the output length is the

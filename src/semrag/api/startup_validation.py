@@ -140,7 +140,7 @@ def _validate_project_roots(settings: Settings, problems: list[str]) -> None:
             problems.append("SEMRAG_PROJECT_ROOTS contains an empty entry")
 
 
-def validate_runtime_config(settings: Settings | None = None) -> Settings:
+async def validate_runtime_config(settings: Settings | None = None) -> Settings:
     """Validate the active Settings. Returns the same Settings instance
     on success, raises ``RuntimeConfigurationError`` with every detected
     problem on failure. Called once at process start; safe to call again
@@ -178,12 +178,12 @@ def validate_runtime_config(settings: Settings | None = None) -> Settings:
     # every restart — and now that production uses the database store
     # exclusively, this is also the bootstrap step that gets a fresh
     # deployment's keys into the api_keys table.
-    _seed_configured_keys(settings)
+    await _seed_configured_keys(settings)
 
     return settings
 
 
-def _seed_configured_keys(settings: Settings) -> None:
+async def _seed_configured_keys(settings: Settings) -> None:
     """Insert ``SEMRAG_API_KEYS`` into the active store when missing.
 
     Failures are logged, not raised: a broken seed must not block
@@ -199,7 +199,7 @@ def _seed_configured_keys(settings: Settings) -> None:
         from semrag.api.api_key_store import seed_initial_keys
 
         store = get_api_key_store()
-        seed_initial_keys(store)
+        await seed_initial_keys(store)
     except Exception:  # noqa: BLE001 — seed failure is a logged warning, not fatal
         logger.warning(
             "seed_initial_keys: skipping; store unavailable",

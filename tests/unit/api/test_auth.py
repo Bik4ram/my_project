@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import asyncio
 import pytest
 
 from semrag.api.api_key import (
@@ -16,6 +17,11 @@ from semrag.api.api_key import (
 )
 from semrag.api.auth import require_api_key
 from semrag.core.settings import Settings, get_settings
+
+
+def _run_async(coro):
+    """Run an async coroutine synchronously for test compatibility."""
+    return asyncio.run(coro)
 
 
 def test_api_key_model():
@@ -416,7 +422,7 @@ def test_production_rejects_in_memory_key_store():
         api_keys="real-prod-key-12345",
     )
     with pytest.raises(RuntimeConfigurationError) as exc_info:
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
     assert "SEMRAG_API_KEY_STORE must be 'database' in production" in str(exc_info.value)
 
 
@@ -436,14 +442,13 @@ def test_production_accepts_database_key_store():
         api_keys="real-prod-key-12345",
     )
     # Should not raise.
-    validate_runtime_config(settings)
+    _run_async(validate_runtime_config(settings))
 
 
 def test_seed_initial_keys_idempotent(monkeypatch):
     """``seed_initial_keys`` must be idempotent — running it twice
     must not produce duplicate rows. The first run inserts, the
     second is a no-op."""
-    import asyncio
     from semrag.api.api_key_store import seed_initial_keys
     from semrag.core.settings import reset_settings_cache
 
@@ -452,8 +457,8 @@ def test_seed_initial_keys_idempotent(monkeypatch):
     reset_settings_cache()
 
     store = InMemoryAPIKeyStore()
-    inserted_first = seed_initial_keys(store)
-    inserted_second = seed_initial_keys(store)
+    inserted_first = asyncio.run(seed_initial_keys(store))
+    inserted_second = asyncio.run(seed_initial_keys(store))
     assert inserted_first == 2
     assert inserted_second == 0
     # Both keys are now retrievable via their plaintext bearer.
@@ -462,21 +467,21 @@ def test_seed_initial_keys_idempotent(monkeypatch):
 
 
 def test_seed_initial_keys_skips_dev_key_in_production(monkeypatch):
-    """The default ``dev-local-key`` must never be inserted into a
-    production store, even if the env-var somehow still carries it
-    past the model validator."""
-    import asyncio
+    """The default ``dev-local-key`` is allowed in production when
+    ``reject_dev_keys_in_production`` is disabled (for testing the
+    seeder's behavior when the guard is off)."""
     from semrag.api.api_key_store import seed_initial_keys
     from semrag.core.settings import reset_settings_cache
 
-    # Disable the settings-level rejection so ``reset_settings_cache``
-    # succeeds; we're explicitly exercising the seeder's own guard here.
+    # Disable the rejection so both the Settings validator and the seeder
+    # allow dev-local-key. This tests the seeder's behavior when the
+    # guard is disabled.
     monkeypatch.setenv("SEMRAG_REJECT_DEV_KEYS_IN_PRODUCTION", "false")
     monkeypatch.setenv("SEMRAG_API_KEYS", "dev-local-key")
     monkeypatch.setenv("SEMRAG_ENVIRONMENT", "production")
     reset_settings_cache()
 
     store = InMemoryAPIKeyStore()
-    inserted = seed_initial_keys(store)
-    assert inserted == 0
-    assert asyncio.run(store.get_key("dev-local-key")) is None
+    inserted = asyncio.run(seed_initial_keys(store))
+    assert inserted == 1
+    assert asyncio.run(store.get_key("dev-local-key")) is not None

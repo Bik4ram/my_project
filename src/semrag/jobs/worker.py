@@ -94,20 +94,40 @@ def indexing_worker(
     settings: Settings,
     session_factory: Callable[[], Session],
     embedding_provider_factory: Callable[[Settings], object],  # returns EmbeddingProvider
+    rtl_root: str | None = None,
+    tb_root: str | None = None,
+    docs_root: str | None = None,
 ) -> None:
     """
     Execute an indexing job in the background.
 
-    This worker updates the job's progress through the stages of the ingestion pipeline.
+    ``root_path`` is the legacy single project root; ``rtl_root`` /
+    ``tb_root`` / ``docs_root`` are the optional authoritative area roots.
+    When any area root is set the project is scanned multi-root (every
+    file's ``relative_path`` is area-prefixed); otherwise the legacy
+    single-root path runs unchanged. This worker updates the job's
+    progress through the stages of the ingestion pipeline.
     """
     start_time = time.time()
-    root_path = Path(root_path)
+    root = Path(root_path).resolve() if root_path else None
+    area_roots = {
+        area: raw
+        for area, raw in (
+            ("rtl", rtl_root),
+            ("tb", tb_root),
+            ("docs", docs_root),
+        )
+        if raw
+    }
+    is_multi_root = bool(area_roots)
     logger.info(
         "Indexing job started",
         extra={
             "job_id": job_id,
             "project_id": project_id,
             "root_path": root_path,
+            "multi_root": is_multi_root,
+            "area_roots": area_roots or None,
         },
     )
     try:
@@ -159,7 +179,12 @@ def indexing_worker(
                 return
 
             scanner = Scanner(manifest_store=PostgresManifestStore(session))
-            manifest, change_set = scanner.scan(project_id, str(root_path))
+            if is_multi_root:
+                manifest, change_set = scanner.scan_multi_root(
+                    project_id, area_roots, display_root=str(root) if root else None
+                )
+            else:
+                manifest, change_set = scanner.scan(project_id, str(root))
             session.flush()
             completed_stages.append(PipelineStage.SCANNING)
             _update_progress(PipelineStage.SCANNING, 1.0)
@@ -192,11 +217,13 @@ def indexing_worker(
 
             def _parse_one(item):
                 rel, rec = item
-                return rel, parser_registry.parse_file(root_path / rel, rec)
+                # absolute_path on the record is authoritative for every
+                # project shape (single-root and multi-root alike).
+                return rel, parser_registry.parse_file(Path(rec.absolute_path), rec)
 
             if parse_workers <= 1 or len(parse_items) <= 1:
                 for rel, rec in parse_items:
-                    result = parser_registry.parse_file(root_path / rel, rec)
+                    result = parser_registry.parse_file(Path(rec.absolute_path), rec)
                     if result is not None:
                         parse_results[rel] = result
             else:
@@ -252,12 +279,24 @@ def indexing_worker(
                 return
 
             from semrag.ingestion.chunking.pipeline import chunk_project
+            from semrag.core.project_paths import ProjectPaths
+
+            project_paths = None
+            if is_multi_root:
+                project_paths = ProjectPaths(
+                    project_id=project_id,
+                    root_path=root,
+                    rtl_root=Path(rtl_root).resolve() if rtl_root else None,
+                    tb_root=Path(tb_root).resolve() if tb_root else None,
+                    docs_root=Path(docs_root).resolve() if docs_root else None,
+                )
             chunks = chunk_project(
-                str(root_path),
+                str(root) if root else "",
                 manifest.files,
                 parse_results,
                 ir_graph,
                 max_workers=max(1, getattr(settings, "max_concurrent_parse_workers", 1)),
+                project_paths=project_paths,
             )
             completed_stages.append(PipelineStage.CHUNKING)
             _update_progress(PipelineStage.CHUNKING, 1.0)
@@ -314,13 +353,17 @@ def indexing_worker(
                 job_manager.update_job(job_id, state=JobState.CANCELLED, completed_at=time.time(), duration=time.time() - start_time)
                 return
 
-            IRGraphRepository(session).save(ir_graph)
-            session.flush()
-            # Bulk delete chunks for paths that disappeared from the project
-            # before upserting the new set; otherwise stale chunks would
-            # linger and waste vector-search budget on ghost content.
+            # CRITICAL ORDERING: Delete chunks for deleted paths BEFORE
+            # saving the IR graph (which deletes stale IR nodes). Chunks
+            # reference IR nodes via FK source_node_id, so IR node deletion
+            # would fail if chunks still exist.
             if change_set.deleted_paths:
                 PgvectorStore(session).delete_by_paths(project_id, list(change_set.deleted_paths))
+                session.flush()
+
+            IRGraphRepository(session).save(ir_graph)
+            session.flush()
+
             if vector_chunks:
                 # Pages the upsert to keep individual INSERT statement size
                 # bounded for very large projects.

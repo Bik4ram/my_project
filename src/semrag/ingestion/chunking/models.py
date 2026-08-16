@@ -64,6 +64,20 @@ class Chunk(BaseModel):
         "(e.g. SystemVerilog module, Python function/class). None for generic text/log/markdown "
         "chunks — never heuristically invented.",
     )
+    # ------------------------------------------------------------------
+    # Portable multi-root metadata. Filled by ``chunk_project`` when the
+    # caller supplies a ``ProjectPaths``; '' / None for legacy single-root
+    # projects. ``source_type`` is the area ('rtl'/'tb'/'docs') the chunk's
+    # source file belongs to; ``source_root`` is that area's absolute root.
+    # ------------------------------------------------------------------
+    source_type: str = Field(
+        default="",
+        description="Area type the source file belongs to: 'rtl'/'tb'/'docs', or '' for legacy single-root projects.",
+    )
+    source_root: str | None = Field(
+        default=None,
+        description="Absolute path of the source area root (None for legacy single-root projects).",
+    )
 
     @property
     def is_generated(self) -> bool:

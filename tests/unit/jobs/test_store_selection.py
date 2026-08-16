@@ -12,12 +12,18 @@ These tests pin the contract for ``SEMRAG_JOB_STORE_BACKEND``:
 """
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Any, List, Optional
 
 import pytest
 
 from semrag.core.settings import Settings, reset_settings_cache
+
+
+def _run_async(coro):
+    """Run an async coroutine synchronously for test compatibility."""
+    return asyncio.run(coro)
 
 
 def test_production_default_is_database_store():
@@ -73,7 +79,7 @@ def test_production_rejects_in_memory_job_store():
         api_keys="real-prod-key-12345",
     )
     with pytest.raises(RuntimeConfigurationError) as exc_info:
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
     assert "SEMRAG_JOB_STORE_BACKEND must be 'database' in production" in str(exc_info.value)
 
 
@@ -94,7 +100,7 @@ def test_production_accepts_database_job_store():
         api_keys="real-prod-key-12345",
     )
     # Should not raise.
-    validate_runtime_config(settings)
+    _run_async(validate_runtime_config(settings))
 
 
 def test_build_job_store_returns_postgres_by_default(monkeypatch):

@@ -57,6 +57,8 @@ class PgvectorStore:
                     "parser_name": chunk.parser_name,
                     "chunker_name": chunk.chunker_name,
                     "symbol_name": chunk.symbol_name,
+                    "source_type": chunk.source_type or None,
+                    "source_root": chunk.source_root,
                 }
             )
         stmt = pg_insert(ChunkRow).values(chunks_to_upsert)
@@ -75,6 +77,8 @@ class PgvectorStore:
                 "parser_name": stmt.excluded.parser_name,
                 "chunker_name": stmt.excluded.chunker_name,
                 "symbol_name": stmt.excluded.symbol_name,
+                "source_type": stmt.excluded.source_type,
+                "source_root": stmt.excluded.source_root,
                 "updated_at": text("now()"),
             },
         )
@@ -146,6 +150,8 @@ class PgvectorStore:
                 parser_name=row.ChunkRow.parser_name,
                 chunker_name=row.ChunkRow.chunker_name or "",
                 symbol_name=row.ChunkRow.symbol_name,
+                source_type=row.ChunkRow.source_type or "",
+                source_root=row.ChunkRow.source_root,
             )
             for row in rows
         ]

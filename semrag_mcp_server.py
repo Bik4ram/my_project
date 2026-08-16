@@ -7,6 +7,21 @@ from mcp.server.mcpserver import MCPServer
 
 SEMRAG_URL = os.getenv("SEMRAG_URL", "http://127.0.0.1:8000")
 SEMRAG_API_KEY = os.getenv("SEMRAG_API_KEY", "dev-local-key")
+# Per-request HTTP timeout. Long coding-agent workflows (Plan-2 generation,
+# multi-iteration repair loops) on a local 30B-class model routinely take
+# 10-30+ minutes, so the default must be well above the old hardcoded 600s.
+# Override with SEMRAG_MCP_TIMEOUT_SECONDS for a tighter cap.
+SEMRAG_MCP_TIMEOUT_SECONDS = float(os.getenv("SEMRAG_MCP_TIMEOUT_SECONDS", "7200"))
+# Cap on how long semrag_index polls for a terminal job state before giving
+# up. Override with SEMRAG_MCP_INDEX_MAX_WAIT_SECONDS.
+SEMRAG_MCP_INDEX_MAX_WAIT_SECONDS = float(
+    os.getenv("SEMRAG_MCP_INDEX_MAX_WAIT_SECONDS", "1800")
+)
+# Working directory used to resolve the active project when a tool is
+# called without an explicit project_id. Injected by the portable launcher
+# (scripts/opencode_mcp_semrag.sh) as $(pwd) so an OpenCode session inside
+# a project auto-selects it; falls back to the server's own cwd.
+SEMRAG_CWD = os.getenv("SEMRAG_CWD") or os.getcwd()
 
 mcp = MCPServer("semrag")
 
@@ -18,10 +33,35 @@ def _headers():
     }
 
 
+async def _resolve_project(project_id: str | None):
+    """Return a concrete project_id, or an error string.
+
+    An explicit non-empty ``project_id`` always wins (documented override
+    rule). Otherwise the active project is resolved from ``SEMRAG_CWD`` via
+    ``GET /v1/projects/resolve`` — the server-side single source of truth
+    for cwd → project detection."""
+    if project_id and project_id.strip():
+        return project_id.strip(), None
+    data = await _request(
+        "GET", "/v1/projects/resolve", params={"cwd": SEMRAG_CWD}
+    )
+    if isinstance(data, str):
+        return None, (
+            f"Error: no project_id supplied and /resolve failed: {data}"
+        )
+    pid = (data or {}).get("project_id")
+    if not pid:
+        return None, (
+            "Error: no project_id supplied and /resolve returned no project "
+            f"for cwd={SEMRAG_CWD}."
+        )
+    return pid, None
+
+
 async def _request(method, path, **kwargs):
     url = f"{SEMRAG_URL}{path}"
 
-    async with httpx.AsyncClient(timeout=600.0) as client:
+    async with httpx.AsyncClient(timeout=SEMRAG_MCP_TIMEOUT_SECONDS) as client:
         response = await client.request(
             method,
             url,
@@ -49,7 +89,7 @@ async def _request_index(method, path, **kwargs):
     """
     url = f"{SEMRAG_URL}{path}"
 
-    async with httpx.AsyncClient(timeout=600.0) as client:
+    async with httpx.AsyncClient(timeout=SEMRAG_MCP_TIMEOUT_SECONDS) as client:
         response = await client.request(
             method,
             url,
@@ -70,15 +110,17 @@ async def _request_index(method, path, **kwargs):
 
 
 @mcp.tool()
-async def semrag_ask(project_id: str, question: str) -> str:
+async def ask(project_id: str, question: str) -> str:
     """
     Ask SemiRAG a question about an indexed semiconductor codebase.
 
     Uses retrieval, ranking, grounding, and LLM generation.
     """
 
-    if not project_id.strip():
-        return "Error: project_id cannot be empty."
+    pid, err = await _resolve_project(project_id)
+    if err:
+        return err
+    project_id = pid
 
     if not question.strip():
         return "Error: question cannot be empty."
@@ -112,7 +154,7 @@ async def semrag_ask(project_id: str, question: str) -> str:
 
 
 @mcp.tool()
-async def semrag_search(
+async def search(
     project_id: str,
     query: str,
     top_k: int = 10,
@@ -127,8 +169,10 @@ async def semrag_search(
     exact file paths and source line ranges.
     """
 
-    if not project_id.strip():
-        return "Error: project_id cannot be empty."
+    pid, err = await _resolve_project(project_id)
+    if err:
+        return err
+    project_id = pid
 
     if not query.strip():
         return "Error: query cannot be empty."
@@ -197,13 +241,15 @@ async def semrag_search(
 
     return "\n".join(results)
 @mcp.tool()
-async def semrag_list_files(project_id: str) -> str:
+async def list_files(project_id: str) -> str:
     """
     List files indexed in a SemiRAG project.
     """
 
-    if not project_id.strip():
-        return "Error: project_id cannot be empty."
+    pid, err = await _resolve_project(project_id)
+    if err:
+        return err
+    project_id = pid
 
     data = await _request(
         "GET",
@@ -217,7 +263,7 @@ async def semrag_list_files(project_id: str) -> str:
 
 
 @mcp.tool()
-async def semrag_read_file(
+async def read_file(
     project_id: str,
     file_path: str,
     start_line: int | None = None,
@@ -229,8 +275,10 @@ async def semrag_read_file(
     Optional start_line and end_line can restrict the returned range.
     """
 
-    if not project_id.strip():
-        return "Error: project_id cannot be empty."
+    pid, err = await _resolve_project(project_id)
+    if err:
+        return err
+    project_id = pid
 
     if not file_path.strip():
         return "Error: file_path cannot be empty."
@@ -258,7 +306,7 @@ async def semrag_read_file(
 
 
 @mcp.tool()
-async def semrag_find_symbol(
+async def find_symbol(
     project_id: str,
     symbol: str,
     kind: str | None = None,
@@ -271,8 +319,10 @@ async def semrag_find_symbol(
     falls back to semantic retrieval.
     """
 
-    if not project_id.strip():
-        return "Error: project_id cannot be empty."
+    pid, err = await _resolve_project(project_id)
+    if err:
+        return err
+    project_id = pid
 
     if not symbol.strip():
         return "Error: symbol cannot be empty."
@@ -326,13 +376,15 @@ async def semrag_find_symbol(
     return json.dumps(fallback_result, indent=2)
 
 @mcp.tool()
-async def semrag_project_info(project_id: str) -> str:
+async def project_info(project_id: str) -> str:
     """
     Get metadata and information about a SemiRAG project.
     """
 
-    if not project_id.strip():
-        return "Error: project_id cannot be empty."
+    pid, err = await _resolve_project(project_id)
+    if err:
+        return err
+    project_id = pid
 
     data = await _request(
         "GET",
@@ -346,7 +398,7 @@ async def semrag_project_info(project_id: str) -> str:
 
 
 @mcp.tool()
-async def semrag_index(project_id: str) -> str:
+async def index(project_id: str) -> str:
     """
     Re-index a project and wait for the job to finish.
 
@@ -358,21 +410,34 @@ async def semrag_index(project_id: str) -> str:
     status, progress, stage, duration, statistics, and any job error.
     """
 
-    if not project_id.strip():
-        return "Error: project_id cannot be empty."
+    pid, err = await _resolve_project(project_id)
+    if err:
+        return err
+    project_id = pid
 
     info = await _request("GET", f"/v1/projects/{project_id}/info")
     if isinstance(info, str):
         return info
 
+    # The project may be legacy single-root (root_path) or multi-root
+    # (rtl_root / tb_root / docs_root). Send whichever roots the project
+    # actually has — the /index endpoint requires at least one.
+    payload: dict = {}
     root_path = info.get("root_path")
-    if not root_path:
-        return f"Error: cannot determine project root for '{project_id}'."
+    if root_path:
+        payload["root_path"] = root_path
+    for area_key in ("rtl_root", "tb_root", "docs_root"):
+        value = info.get(area_key)
+        if value:
+            payload[area_key] = value
+
+    if not payload:
+        return f"Error: cannot determine any project root for '{project_id}'."
 
     data = await _request_index(
         "POST",
         f"/v1/projects/{project_id}/index",
-        json={"root_path": root_path},
+        json=payload,
     )
     if isinstance(data, str):
         return data
@@ -385,7 +450,7 @@ async def semrag_index(project_id: str) -> str:
 
     status_path = f"/v1/projects/{project_id}/jobs/{job_id}"
     poll_interval = 2.0
-    max_wait_seconds = 600.0
+    max_wait_seconds = SEMRAG_MCP_INDEX_MAX_WAIT_SECONDS
     waited = 0.0
     last_state = "unknown"
 
@@ -422,7 +487,7 @@ async def semrag_index(project_id: str) -> str:
 
 
 @mcp.tool()
-async def semrag_write_file(
+async def write_file(
     project_id: str,
     file_path: str,
     content: str,
@@ -436,8 +501,10 @@ async def semrag_write_file(
     write so the agent can decide when to re-index.
     """
 
-    if not project_id.strip():
-        return "Error: project_id cannot be empty."
+    pid, err = await _resolve_project(project_id)
+    if err:
+        return err
+    project_id = pid
 
     if not file_path.strip():
         return "Error: file_path cannot be empty."
@@ -455,7 +522,7 @@ async def semrag_write_file(
 
 
 @mcp.tool()
-async def semrag_apply_patch(
+async def apply_patch(
     project_id: str,
     file_path: str,
     old_text: str,
@@ -471,8 +538,10 @@ async def semrag_apply_patch(
     ``requires_reindex=true`` after a successful patch.
     """
 
-    if not project_id.strip():
-        return "Error: project_id cannot be empty."
+    pid, err = await _resolve_project(project_id)
+    if err:
+        return err
+    project_id = pid
 
     if not file_path.strip():
         return "Error: file_path cannot be empty."
@@ -497,7 +566,42 @@ async def semrag_apply_patch(
 
 
 @mcp.tool()
-async def semrag_run_validation(project_id: str, target: str = "rtl_lint") -> str:
+async def delete_file(
+    project_id: str,
+    file_path: str,
+) -> str:
+    """
+    Delete a file from the project.
+
+    The target file must already exist inside the project's writable root.
+    The path must be project-relative; absolute paths and '..' traversal
+    are rejected by the API. The docs root is read-only and cannot be
+    deleted from. Re-indexing is the caller's responsibility — the response
+    signals ``requires_reindex=true`` after a successful delete.
+    """
+
+    pid, err = await _resolve_project(project_id)
+    if err:
+        return err
+    project_id = pid
+
+    if not file_path.strip():
+        return "Error: file_path cannot be empty."
+
+    data = await _request(
+        "DELETE",
+        f"/v1/projects/{project_id}/files/content",
+        params={"file_path": file_path},
+    )
+
+    if isinstance(data, str):
+        return data
+
+    return json.dumps(data, indent=2)
+
+
+@mcp.tool()
+async def run_validation(project_id: str, target: str = "rtl_lint") -> str:
     """
     Run a named validation target for a project (currently Verilator lint).
 
@@ -517,8 +621,10 @@ async def semrag_run_validation(project_id: str, target: str = "rtl_lint") -> st
                  library); see blocked_reason. Blocked is NOT a pass.
     """
 
-    if not project_id.strip():
-        return "Error: project_id cannot be empty."
+    pid, err = await _resolve_project(project_id)
+    if err:
+        return err
+    project_id = pid
 
     if not target.strip():
         return "Error: target cannot be empty."
@@ -536,7 +642,7 @@ async def semrag_run_validation(project_id: str, target: str = "rtl_lint") -> st
 
 
 @mcp.tool()
-async def semrag_code(
+async def code(
     project_id: str,
     request: str,
     max_repair_attempts: int = 3,
@@ -558,11 +664,13 @@ async def semrag_code(
       - returns an A1-grounded summary of what was actually done
 
     Use for concrete, unambiguous code-change/debug requests. For pure
-    questions use semrag_ask.
+    questions use ask.
     """
 
-    if not project_id.strip():
-        return "Error: project_id cannot be empty."
+    pid, err = await _resolve_project(project_id)
+    if err:
+        return err
+    project_id = pid
 
     if not request.strip():
         return "Error: request cannot be empty."

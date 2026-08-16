@@ -88,6 +88,7 @@ class InProcessCodingToolset:
         settings: Settings,
         job_manager: JobManager,
         index_poll_timeout: float = 600.0,
+        project_paths=None,
     ):
         self.project_id = project_id
         self._session = session
@@ -97,6 +98,10 @@ class InProcessCodingToolset:
         self._settings = settings
         self._job_manager = job_manager
         self._index_poll_timeout = index_poll_timeout
+        # Optional portable multi-root layout. When set, file operations
+        # resolve ``rtl/``/``tb/``/``docs/`` prefixed paths against the area
+        # roots and the docs root is read-only.
+        self._project_paths = project_paths
 
     def project_info(self) -> str:
         return (
@@ -149,13 +154,15 @@ class InProcessCodingToolset:
         )
 
     def read_file(self, file_path: str, start: int | None = None, end: int | None = None) -> str:
-        return read_file(self._root, file_path, start, end)
+        return read_file(self._root, file_path, start, end, project_paths=self._project_paths)
 
     def write_file(self, file_path: str, content: str) -> dict:
-        return write_file(self._root, file_path, content)
+        return write_file(self._root, file_path, content, project_paths=self._project_paths)
 
     def apply_patch(self, file_path: str, old_text: str, new_text: str) -> dict:
-        return patch_file(self._root, file_path, old_text, new_text)
+        return patch_file(
+            self._root, file_path, old_text, new_text, project_paths=self._project_paths
+        )
 
     def run_validation(self, target: str) -> ValidationResult:
         config = load_validation_config(self.project_id)
@@ -170,7 +177,14 @@ class InProcessCodingToolset:
                 blocked_reason=f"no validation config registered for project '{self.project_id}'",
                 target=target,
             )
-        return run_validation(self._root, config, target)
+        working_root = self._root
+        if self._project_paths is not None:
+            inferred = self._project_paths.infer_project_root()
+            if inferred is not None:
+                working_root = inferred
+        return run_validation(
+            working_root, config, target, project_paths=self._project_paths
+        )
 
     def validation_targets(self) -> list[str]:
         config = load_validation_config(self.project_id)
@@ -179,7 +193,25 @@ class InProcessCodingToolset:
         return sorted(config.targets.keys())
 
     def index(self) -> dict:
-        job, _created = self._job_manager.create_job(self.project_id, str(self._root))
+        job, _created = self._job_manager.create_job(
+            self.project_id,
+            str(self._root),
+            rtl_root=(
+                str(self._project_paths.rtl_root)
+                if self._project_paths is not None
+                else None
+            ),
+            tb_root=(
+                str(self._project_paths.tb_root)
+                if self._project_paths is not None
+                else None
+            ),
+            docs_root=(
+                str(self._project_paths.docs_root)
+                if self._project_paths is not None
+                else None
+            ),
+        )
         job_id = job.job_id
         deadline = time.monotonic() + self._index_poll_timeout
         while time.monotonic() < deadline:
@@ -198,7 +230,7 @@ class InProcessCodingToolset:
 
     def is_retrievable(self, file_path: str) -> bool:
         try:
-            safe_resolve_target(self._root, file_path)
+            safe_resolve_target(self._root, file_path, project_paths=self._project_paths)
         except Exception:
             return False
         indexed = {
@@ -209,7 +241,7 @@ class InProcessCodingToolset:
         return file_path in indexed
 
     def file_exists(self, file_path: str) -> bool:
-        return file_exists(self._root, file_path)
+        return file_exists(self._root, file_path, project_paths=self._project_paths)
 
     def snapshot_files(self) -> set[str]:
         return snapshot_paths(self._root)

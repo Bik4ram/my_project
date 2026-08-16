@@ -3,6 +3,7 @@ Tests for runtime configuration validation.
 """
 from __future__ import annotations
 
+import asyncio
 import pytest
 
 from semrag.api.startup_validation import (
@@ -29,20 +30,26 @@ def _settings(**overrides) -> Settings:
     return base.model_copy(update=overrides)
 
 
+def _run_async(coro):
+    """Run an async coroutine synchronously for test compatibility."""
+    return asyncio.run(coro)
+
+
 # ---------------------------------------------------------------------------
 # Happy path
 # ---------------------------------------------------------------------------
 
+
 def test_valid_config_passes():
     settings = _settings()
-    result = validate_runtime_config(settings)
+    result = _run_async(validate_runtime_config(settings))
     assert result is settings
 
 
 def test_mock_llm_passes_validation():
     """mock doesn't need a base URL or model — useful for tests."""
     settings = _settings(llm_provider="mock", llm_base_url="", llm_model="")
-    validate_runtime_config(settings)  # should not raise
+    _run_async(validate_runtime_config(settings))  # should not raise
 
 
 def test_tfidf_embedding_passes_validation():
@@ -51,7 +58,7 @@ def test_tfidf_embedding_passes_validation():
         embedding_provider="tfidf",
         embedding_base_url="",
     )
-    validate_runtime_config(settings)
+    _run_async(validate_runtime_config(settings))
 
 
 # ---------------------------------------------------------------------------
@@ -97,20 +104,20 @@ def test_database_url_invalid_url_raises():
 def test_embedding_dimension_must_be_positive():
     settings = _settings(embedding_dimension=0)
     with pytest.raises(RuntimeConfigurationError) as exc:
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
     assert "embedding_dimension" in str(exc.value).lower()
 
 
 def test_embedding_provider_unknown_rejected():
     settings = _settings(embedding_provider="bogus")
     with pytest.raises(RuntimeConfigurationError):
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
 
 
 def test_embedding_ollama_requires_base_url():
     settings = _settings(embedding_base_url="")
     with pytest.raises(RuntimeConfigurationError) as exc:
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
     assert "embedding_base_url" in str(exc.value).lower()
 
 
@@ -121,40 +128,40 @@ def test_embedding_ollama_requires_base_url():
 def test_llm_unknown_provider_rejected():
     settings = _settings(llm_provider="bogus")
     with pytest.raises(RuntimeConfigurationError):
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
 
 
 def test_llm_requires_base_url_for_ollama():
     settings = _settings(llm_base_url="")
     with pytest.raises(RuntimeConfigurationError) as exc:
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
     assert "llm_base_url" in str(exc.value).lower()
 
 
 def test_llm_requires_model():
     settings = _settings(llm_model="")
     with pytest.raises(RuntimeConfigurationError) as exc:
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
     assert "llm_model" in str(exc.value).lower()
 
 
 def test_llm_timeout_must_be_positive():
     settings = _settings(llm_timeout_seconds=0)
     with pytest.raises(RuntimeConfigurationError) as exc:
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
     assert "timeout" in str(exc.value).lower()
 
 
 def test_llm_negative_retries_rejected():
     settings = _settings(llm_max_retries=-1)
     with pytest.raises(RuntimeConfigurationError):
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
 
 
 def test_llm_num_predict_zero_rejected():
     settings = _settings(llm_num_predict=0)
     with pytest.raises(RuntimeConfigurationError):
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +171,7 @@ def test_llm_num_predict_zero_rejected():
 def test_production_requires_api_keys():
     settings = _settings(environment="production", api_keys="")
     with pytest.raises(RuntimeConfigurationError) as exc:
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
     assert "api_keys" in str(exc.value).lower()
 
 
@@ -177,19 +184,19 @@ def test_production_with_default_dev_key_rejected_by_settings():
 
 def test_development_passes_with_dev_key():
     settings = _settings(environment="development", api_keys="dev-local-key")
-    validate_runtime_config(settings)
+    _run_async(validate_runtime_config(settings))
 
 
 def test_max_body_size_must_be_positive():
     settings = _settings(max_body_size=0)
     with pytest.raises(RuntimeConfigurationError):
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
 
 
 def test_rate_limit_negative_rejected():
     settings = _settings(rate_limit_per_minute=-1)
     with pytest.raises(RuntimeConfigurationError):
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
 
 
 # ---------------------------------------------------------------------------
@@ -199,7 +206,7 @@ def test_rate_limit_negative_rejected():
 def test_project_roots_empty_entry_rejected():
     settings = _settings(project_roots=["", "/srv/code"])
     with pytest.raises(RuntimeConfigurationError) as exc:
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
     assert "project_roots" in str(exc.value).lower()
 
 
@@ -223,7 +230,7 @@ def test_validation_aggregates_all_problems():
         llm_base_url="",
     )
     with pytest.raises(RuntimeConfigurationError) as exc:
-        validate_runtime_config(settings)
+        _run_async(validate_runtime_config(settings))
     message = str(exc.value)
     assert "embedding_dimension" in message.lower()
     assert "llm_model" in message.lower()

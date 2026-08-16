@@ -51,6 +51,10 @@ class PostgresManifestStore:
         if latest_scan is None:
             return None
 
+        project = self._session.execute(
+            select(Project).where(Project.project_id == project_id)
+        ).scalar_one_or_none()
+
         file_rows = self._session.execute(
             select(FileRow).where(FileRow.project_id == project_id)
         ).scalars().all()
@@ -77,6 +81,9 @@ class PostgresManifestStore:
             scan_id=latest_scan.scan_id,
             project_id=latest_scan.project_id,
             root_path=latest_scan.root_path,
+            rtl_root=project.rtl_root if project else None,
+            tb_root=project.tb_root if project else None,
+            docs_root=project.docs_root if project else None,
             started_at=latest_scan.started_at,
             completed_at=latest_scan.completed_at,
             git_metadata=GitRepositoryMetadata.model_validate(latest_scan.git_metadata),
@@ -86,7 +93,13 @@ class PostgresManifestStore:
         )
 
     def save_manifest(self, manifest: ScanManifest) -> None:
-        self._ensure_project(manifest.project_id, manifest.root_path)
+        self._ensure_project(
+            manifest.project_id,
+            manifest.root_path,
+            rtl_root=manifest.rtl_root,
+            tb_root=manifest.tb_root,
+            docs_root=manifest.docs_root,
+        )
 
         self._session.execute(
             pg_insert(ScanManifestRow)
@@ -105,11 +118,40 @@ class PostgresManifestStore:
 
         self._sync_files(manifest)
 
-    def _ensure_project(self, project_id: str, root_path: str) -> None:
+    def _ensure_project(
+        self,
+        project_id: str,
+        root_path: str,
+        rtl_root: str | None = None,
+        tb_root: str | None = None,
+        docs_root: str | None = None,
+    ) -> None:
+        """Upsert the project row. Area roots are additive: when provided
+        they overwrite stale values; when ``None`` the existing values are
+        left untouched (a legacy single-root save must not clobber a
+        multi-root project's area roots)."""
         self._session.execute(
             pg_insert(Project)
-            .values(project_id=project_id, root_path=root_path)
-            .on_conflict_do_nothing(index_elements=["project_id"])
+            .values(
+                project_id=project_id,
+                root_path=root_path,
+                rtl_root=rtl_root,
+                tb_root=tb_root,
+                docs_root=docs_root,
+            )
+            .on_conflict_do_update(
+                index_elements=["project_id"],
+                set_={
+                    "root_path": root_path,
+                    **(
+                        {"rtl_root": rtl_root}
+                        if rtl_root is not None
+                        else {}
+                    ),
+                    **({"tb_root": tb_root} if tb_root is not None else {}),
+                    **({"docs_root": docs_root} if docs_root is not None else {}),
+                },
+            )
         )
 
     def _sync_files(self, manifest: ScanManifest) -> None:

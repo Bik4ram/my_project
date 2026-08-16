@@ -33,6 +33,35 @@ def test_ollama_returns_ollama_llm():
     assert isinstance(client, OllamaLLM)
 
 
+def test_ollama_wires_num_predict_and_think_from_settings():
+    """Regression for the qwen3 empty-answer bug: the factory must pull
+    ``llm_num_predict`` and the Ollama ``think`` toggle from Settings so a
+    reasoning model doesn't exhaust its generation budget inside the
+    thinking phase (``done_reason="length"``, ``content=""``)."""
+    settings = _settings(
+        llm_provider="ollama",
+        llm_model="qwen3:4b",
+        llm_num_predict=2048,
+        llm_ollama_think=True,
+    )
+    client = build_llm(settings)
+    assert isinstance(client, OllamaLLM)
+    assert client._num_predict == 2048
+    assert client._think is True
+
+
+def test_ollama_defaults_keep_thinking_enabled():
+    """The default deployment must keep Qwen3 thinking ENABLED: reasoning
+    then lives in ``message.thinking`` and ``content`` stays clean, which
+    the coding agent's strict-JSON steps rely on. The generation-budget fix
+    is ``llm_num_predict`` headroom, not disabled thinking."""
+    settings = _settings(llm_provider="ollama")
+    assert settings.llm_ollama_think is True
+    assert settings.llm_num_predict >= 2048
+    client = build_llm(settings)
+    assert client._think is True
+
+
 def test_openai_returns_openai_llm():
     client = build_llm(_settings(llm_provider="openai"))
     assert isinstance(client, OpenAILLM)

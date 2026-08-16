@@ -315,3 +315,48 @@ def test_sv_generated_lint_rejects_syntax_error(tmp_path):
     result = run_validation(tmp_path, cfg, "sv_generated_lint", log_output=False)
     assert result.exit_code != 0
     assert result.status == "failed"
+
+def test_build_argv_expands_env_var_in_external_dep_path(tmp_path, monkeypatch):
+    dep_root = tmp_path / "uvm_core"
+    (dep_root / "inc").mkdir(parents=True)
+    (dep_root / "uvm_pkg.sv").write_text("package uvm_pkg; endpackage\n")
+    monkeypatch.setenv("SEMRAG_UVM_ROOT", str(dep_root))
+
+    cfg = ValidationConfig(
+        project_id="p",
+        tool="verilator",
+        trusted_external_deps=[{"name": "uvm", "path": "${SEMRAG_UVM_ROOT}"}],
+        targets={
+            "t": {
+                "incdirs": ["ext:uvm/inc"],
+                "files": ["ext:uvm/uvm_pkg.sv"],
+            }
+        },
+    )
+    argv = build_argv(tmp_path, cfg, "t")
+    joined = " ".join(argv)
+    assert f"+incdir+{dep_root}/inc" in joined
+    assert f"{dep_root}/uvm_pkg.sv" in joined
+
+
+def test_build_argv_resolves_relative_external_dep_to_config_dir(tmp_path, monkeypatch):
+    import semrag.validation.config as cfg_mod
+    from semrag.validation.runner import _resolve_path
+
+    monkeypatch.setattr(cfg_mod, "_REPO_ROOT", tmp_path)
+    stubs = tmp_path / "configs" / "validation" / "stubs" / "rtl_uvm"
+    stubs.mkdir(parents=True)
+    (stubs / "harness.sv").write_text("// harness\n")
+
+    cfg = ValidationConfig(
+        project_id="p",
+        tool="verilator",
+        trusted_external_deps=[{"name": "stubs", "path": "stubs/rtl_uvm"}],
+        targets={
+            "t": {"incdirs": ["ext:stubs"], "files": ["ext:stubs/harness.sv"]}
+        },
+    )
+    argv = build_argv(tmp_path, cfg, "t")
+    joined = " ".join(argv)
+    assert f"+incdir+{stubs}" in joined
+    assert f"{stubs}/harness.sv" in joined

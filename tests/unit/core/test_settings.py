@@ -73,3 +73,40 @@ def test_reset_settings_cache_picks_up_new_env(clean_env, monkeypatch):
     b = reset_settings_cache()
     assert b.llm_model == "different-model"
     assert a is not b
+
+
+def test_area_roots_default_to_none(clean_env):
+    settings = Settings()
+    assert settings.rtl_root is None
+    assert settings.tb_root is None
+    assert settings.docs_root is None
+    assert settings.project_id is None
+
+
+def test_area_roots_accept_absolute_paths(clean_env):
+    settings = Settings(
+        rtl_root="/srv/rtl",
+        tb_root="/srv/tb",
+        docs_root="/srv/docs",
+        project_id="chip",
+    )
+    assert settings.rtl_root == "/srv/rtl"
+    assert settings.tb_root == "/srv/tb"
+    assert settings.docs_root == "/srv/docs"
+    assert settings.project_id == "chip"
+
+
+def test_area_roots_reject_relative_paths(clean_env):
+    with pytest.raises(Exception):
+        Settings(rtl_root="rtl")
+    with pytest.raises(Exception):
+        Settings(tb_root="./tb")
+    with pytest.raises(Exception):
+        Settings(docs_root="../../docs")
+
+
+def test_area_roots_accept_blank_as_none(clean_env):
+    settings = Settings(rtl_root="", tb_root="   ", docs_root=None)
+    assert settings.rtl_root is None
+    assert settings.tb_root is None
+    assert settings.docs_root is None

@@ -26,6 +26,7 @@ from semrag.api.api_key import APIKey
 from semrag.api.dependencies import get_db_session
 from semrag.api.project_auth import get_project_authorizer
 from semrag.api.rate_limit import enforce_rate_limit
+from semrag.core.project_paths import ProjectPaths
 from semrag.storage.postgres.models import Project
 from semrag.validation import load_validation_config, run_validation
 
@@ -47,7 +48,7 @@ def validate_project(
     """
     target = (request or {}).get("target", "rtl_lint")
 
-    root = _resolve_project_root(db, project_id)
+    root, project_paths = _resolve_project_roots(db, project_id)
     config = load_validation_config(project_id)
     if config is None:
         raise HTTPException(
@@ -64,7 +65,7 @@ def validate_project(
         )
 
     try:
-        result = run_validation(root, config, target)
+        result = run_validation(root, config, target, project_paths=project_paths)
     except (ValueError, FileNotFoundError) as exc:
         raise HTTPException(
             status_code=400,
@@ -79,8 +80,14 @@ def validate_project(
     return result.to_dict()
 
 
-def _resolve_project_root(db: Session, project_id: str) -> Path:
-    """Look up the project and return its root as a resolved Path."""
+def _resolve_project_roots(db: Session, project_id: str) -> tuple[Path, ProjectPaths | None]:
+    """Look up the project and return its roots.
+
+    Returns ``(working_dir, project_paths)`` where ``working_dir`` is the
+    validation cwd (the legacy ``root_path`` when present, else the deepest
+    common ancestor of the area roots) and ``project_paths`` carries the
+    multi-root layout for config-path resolution (None for legacy
+    single-root projects)."""
     project_row = db.execute(
         select(Project).where(Project.project_id == project_id)
     ).scalar_one_or_none()
@@ -89,4 +96,20 @@ def _resolve_project_root(db: Session, project_id: str) -> Path:
             status_code=404,
             detail=f"Project not found: {project_id}",
         )
-    return Path(project_row.root_path).resolve()
+
+    paths = ProjectPaths(
+        project_id=project_id,
+        root_path=Path(project_row.root_path).resolve() if project_row.root_path else None,
+        rtl_root=Path(project_row.rtl_root).resolve() if project_row.rtl_root else None,
+        tb_root=Path(project_row.tb_root).resolve() if project_row.tb_root else None,
+        docs_root=Path(project_row.docs_root).resolve() if project_row.docs_root else None,
+    )
+    working = paths.infer_project_root()
+    if working is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Project has no resolvable root: {project_id}",
+        )
+    if not paths.has_areas:
+        return working, None
+    return working, paths

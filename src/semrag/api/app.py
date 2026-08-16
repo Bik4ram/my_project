@@ -35,7 +35,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     replica deployments set this to false and run a dedicated worker
     (``python -m semrag.worker``).
     """
-    settings = validate_runtime_config()
+    settings = await validate_runtime_config()
     from semrag.core.observability import configure_logging
     from semrag.core.tracing import configure_tracing
 

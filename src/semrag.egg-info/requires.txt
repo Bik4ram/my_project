@@ -18,6 +18,7 @@ requests
 fastapi
 uvicorn[standard]
 sse-starlette
+redis>=4.2
 
 [dev]
 pytest
@@ -28,3 +29,4 @@ black
 mypy
 coverage
 pip-tools
+fakeredis[lua]

@@ -134,3 +134,68 @@ def test_stream_yields_ndjson_lines():
     assert chunks[1].delta_content == "world"
     assert chunks[1].finish_reason == "stop"
     assert resp.raise_for_status.called
+
+
+def test_complete_sends_num_predict_and_think_flag():
+    """Regression: qwen3-class models spend the ``num_predict`` budget in
+    their thinking phase and terminate with ``done_reason="length"`` and
+    ``content=""`` when the cap is too small. The Ollama client must send
+    both the token cap and the top-level ``think`` flag so generation
+    reliably produces an answer."""
+    llm = OllamaLLM(
+        base_url="http://localhost:11434",
+        model="qwen3:4b",
+        num_predict=2048,
+        think=False,
+    )
+    payload = {"message": {"role": "assistant", "content": "ok"}, "done": True}
+    with patch("requests.post", return_value=_mock_response(payload)) as mock_post:
+        llm.complete([{"role": "user", "content": "hi"}])
+
+    sent = mock_post.call_args.kwargs["json"]
+    # num_predict must be under ``options`` (Ollama-native spelling).
+    assert sent["options"]["num_predict"] == 2048
+    # ``think`` must be a top-level field, NOT ``options.think`` — Ollama
+    # 0.32.x ignores the option-namespaced spelling.
+    assert sent["think"] is False
+    assert "think" not in sent["options"]
+
+
+def test_think_flag_omitted_when_not_configured():
+    """Default construction (tests / non-Ollama callers) must not invent a
+    ``think`` field — only the factory wires it from settings."""
+    llm = OllamaLLM(base_url="http://localhost:11434", model="qwen2.5:7b")
+    payload = {"message": {"role": "assistant", "content": "ok"}, "done": True}
+    with patch("requests.post", return_value=_mock_response(payload)) as mock_post:
+        llm.complete([{"role": "user", "content": "hi"}])
+
+    sent = mock_post.call_args.kwargs["json"]
+    assert "think" not in sent
+    assert "options" not in sent
+
+
+def test_length_termination_with_empty_content_surfaces_empty_result():
+    """Document the failure mode the config prevents: when Ollama exhausts
+    the generation budget inside ``message.thinking``, it returns
+    ``done_reason="length"`` with ``content=""``. The client must surface
+    this faithfully (it does not fabricate an answer from thinking), and
+    the factory's num_predict + think config is what keeps it from
+    happening in production."""
+    llm = OllamaLLM(base_url="http://localhost:11434", model="qwen3:4b")
+    payload = {
+        "message": {
+            "role": "assistant",
+            "content": "",
+            "thinking": "We are to answer the question... (unfinished)",
+        },
+        "done": True,
+        "done_reason": "length",
+        "prompt_eval_count": 200,
+        "eval_count": 800,
+    }
+    with patch("requests.post", return_value=_mock_response(payload)):
+        result = llm.complete([{"role": "user", "content": "hi"}])
+
+    assert result.finish_reason == "length"
+    assert result.content in (None, "")
+    assert result.tool_calls == []

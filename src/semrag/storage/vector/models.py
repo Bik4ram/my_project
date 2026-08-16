@@ -39,6 +39,11 @@ class VectorChunk(BaseModel):
     parser_name: str | None = None
     chunker_name: str = ""
     symbol_name: str | None = None
+    # Portable multi-root metadata (mirror of Chunk). source_type is the
+    # area ('rtl'/'tb'/'docs') or '' for legacy single-root; source_root is
+    # the area's absolute root or None.
+    source_type: str = ""
+    source_root: str | None = None
 
 
 class VectorSearchFilter(BaseModel):
@@ -62,3 +67,5 @@ class VectorSearchResult(BaseModel):
     parser_name: str | None = None
     chunker_name: str = ""
     symbol_name: str | None = None
+    source_type: str = ""
+    source_root: str | None = None

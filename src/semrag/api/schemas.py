@@ -9,7 +9,34 @@ from typing import List, Dict, Any
 
 
 class IndexProjectRequest(BaseModel):
-    root_path: str = Field(..., description="Absolute path to the project root on the machine running this API.")
+    """Registration request for a project to index.
+
+    Two shapes, both backward compatible:
+
+    * Legacy single-root: only ``root_path`` (absolute path to the project
+      root). Multi-root fields all ``None``.
+    * Multi-root / portable: at least one of ``rtl_root`` / ``tb_root`` /
+      ``docs_root`` is set. ``root_path`` is optional here and used only as
+      a display/fallback root (e.g. as the validation working directory);
+      file resolution always goes through the area roots.
+    """
+
+    root_path: str | None = Field(
+        default=None,
+        description="Absolute path to the legacy project root (required for single-root registration).",
+    )
+    rtl_root: str | None = Field(
+        default=None,
+        description="Absolute path to the RTL source area root.",
+    )
+    tb_root: str | None = Field(
+        default=None,
+        description="Absolute path to the testbench/UVM area root.",
+    )
+    docs_root: str | None = Field(
+        default=None,
+        description="Absolute path to the documentation area root (read-only by default).",
+    )
 
 
 class IndexProjectResponse(BaseModel):
@@ -93,6 +120,22 @@ class PatchFileResponse(BaseModel):
     relative_path: str
     replacements: int
     bytes_written: int
+    requires_reindex: bool
+
+
+class DeleteFileRequest(BaseModel):
+    file_path: str = Field(
+        ...,
+        min_length=1,
+        max_length=1024,
+        description="Project-relative path. Must be inside the project's writable root. No absolute paths, no '..' traversal.",
+    )
+
+
+class DeleteFileResponse(BaseModel):
+    project_id: str
+    relative_path: str
+    deleted: bool
     requires_reindex: bool
 
 

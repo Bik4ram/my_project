@@ -153,10 +153,23 @@ class IngestionService:
             retention=settings.debug_artifact_retention,
         )
 
-    def index(self, project_id: str, root_path: str) -> IndexResult:
-        root = Path(root_path).resolve()
-        if not root.is_dir():
-            raise NotADirectoryError(f"Project root does not exist: {root}")
+    def index(
+        self,
+        project_id: str,
+        root_path: str,
+        rtl_root: str | None = None,
+        tb_root: str | None = None,
+        docs_root: str | None = None,
+    ) -> IndexResult:
+        root = Path(root_path).resolve() if root_path else None
+        area_roots = {
+            area: raw
+            for area, raw in (("rtl", rtl_root), ("tb", tb_root), ("docs", docs_root))
+            if raw
+        }
+        is_multi_root = bool(area_roots)
+        if not is_multi_root and root is None:
+            raise ValueError("index() requires root_path or at least one area root")
 
         run_id = new_run_id()
         self._debug.start_run(run_id)
@@ -164,7 +177,12 @@ class IngestionService:
         with stage("ingest.scan", logger=logger, project_id=project_id, run_id=run_id) as stats:
             with timer("ingest.scan.duration_ms", project_id=project_id) as _extras:
                 scanner = Scanner(manifest_store=PostgresManifestStore(self._session))
-                manifest, change_set = scanner.scan(project_id, str(root))
+                if is_multi_root:
+                    manifest, change_set = scanner.scan_multi_root(
+                        project_id, area_roots, display_root=str(root) if root else None
+                    )
+                else:
+                    manifest, change_set = scanner.scan(project_id, str(root))
             self._session.flush()
             stats["file_count"] = manifest.file_count
             stats["added"] = len(change_set.added)
@@ -187,7 +205,9 @@ class IngestionService:
             with timer("ingest.parse.duration_ms", project_id=project_id, files=manifest.file_count):
                 parse_results: dict[str, Any] = {}
                 for rel, rec in manifest.files.items():
-                    result = self._parser_registry.parse_file(root / rel, rec)
+                    # absolute_path on the record is authoritative for
+                    # every project shape (single-root and multi-root).
+                    result = self._parser_registry.parse_file(Path(rec.absolute_path), rec)
                     if result is not None:
                         parse_results[rel] = result
                         if self._debug.is_active:
@@ -208,7 +228,24 @@ class IngestionService:
 
         with stage("ingest.chunk", logger=logger, project_id=project_id) as stats:
             with timer("ingest.chunk.duration_ms", project_id=project_id):
-                chunks = chunk_project(str(root), manifest.files, parse_results, ir_graph)
+                project_paths = None
+                if is_multi_root:
+                    from semrag.core.project_paths import ProjectPaths
+
+                    project_paths = ProjectPaths(
+                        project_id=project_id,
+                        root_path=root,
+                        rtl_root=Path(rtl_root).resolve() if rtl_root else None,
+                        tb_root=Path(tb_root).resolve() if tb_root else None,
+                        docs_root=Path(docs_root).resolve() if docs_root else None,
+                    )
+                chunks = chunk_project(
+                    str(root) if root else "",
+                    manifest.files,
+                    parse_results,
+                    ir_graph,
+                    project_paths=project_paths,
+                )
             stats["chunk_count"] = len(chunks)
         logger.info("chunking complete", extra={"project_id": project_id, "chunk_count": len(chunks)})
         self._debug.write_json(
@@ -700,13 +737,18 @@ class QueryService:
             tools.append(ReadFileTool(self._project_root))
         return ToolRegistry(tools)
 
-    def build_coding_toolset(self, project_id: str, project_root: str, job_manager) -> CodingToolset:
+    def build_coding_toolset(
+        self, project_id: str, project_root: str, job_manager, project_paths=None
+    ) -> CodingToolset:
         """Build the A2 in-process coding toolset over the frozen core.
 
         Reuses the same retriever construction as ``_build_tools`` so the
         coding agent searches exactly what /query and /answer search.
         ``CodingToolset`` is a Protocol; concrete imports stay out of
-        business code (see the repository guideline)."""
+        business code (see the repository guideline). ``project_paths`` (a
+        ``core.project_paths.ProjectPaths``) is optional; when provided,
+        file operations resolve area-prefixed paths and the docs root is
+        read-only."""
         from semrag.reasoning.coding.tools import InProcessCodingToolset
 
         retriever = self._build_retriever()
@@ -719,6 +761,7 @@ class QueryService:
             embed_query_fn=embed_query_fn,
             settings=self._settings,
             job_manager=job_manager,
+            project_paths=project_paths,
         )
 
     def _project_file_index(self, project_id: str) -> str:

@@ -114,6 +114,8 @@ def embed_chunks(
             parser_name=chunk.parser_name,
             chunker_name=chunk.chunker_name,
             symbol_name=chunk.symbol_name,
+            source_type=chunk.source_type,
+            source_root=chunk.source_root,
         )
         for chunk, h in zip(chunks, hashes)
     ]

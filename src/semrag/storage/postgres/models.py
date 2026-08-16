@@ -69,6 +69,13 @@ class Project(Base):
 
     project_id: Mapped[str] = mapped_column(String(255), primary_key=True)
     root_path: Mapped[str] = mapped_column(Text, nullable=False)
+    # Optional authoritative area roots (multi-root / portable configuration).
+    # ``root_path`` remains the legacy single project root; the three area
+    # roots are additive. A multi-root project has at least one of them set,
+    # a legacy single-root project has only ``root_path``.
+    rtl_root: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tb_root: Mapped[str | None] = mapped_column(Text, nullable=True)
+    docs_root: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default="now()"
     )

@@ -1,40 +1,138 @@
-# Python virtual environments
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
 .venv/
 venv/
 env/
+ENV/
+.env/
+.python-version
 
-# Environment / secrets
+# Packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# ============================================================
+# Environment / Secrets
+# ============================================================
 .env
 .env.*
 !.env.example
+!.env.offline.example
 
-# Python cache
-__pycache__/
-*.py[cod]
+*.pem
+*.key
+*.crt
+secrets/
+credentials/
+
+# ============================================================
+# Testing / Coverage
+# ============================================================
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+junit.xml
 
+# ============================================================
+# Linters / Type Checkers
+# ============================================================
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.pytype/
+.pyright/
+
+# ============================================================
+# SemRAG runtime/debug/generated data
+# ============================================================
+.semrag/debug/
+.semrag/runs/
+.semrag/cache/
+.semrag/tmp/
+
+logs/
+*.log
+
+# ============================================================
+# Temporary files
+# ============================================================
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ============================================================
 # IDE
+# ============================================================
 .vscode/
 .idea/
+*.iml
 
-# Logs
-*.log
-logs/
+# ============================================================
+# OS / Editor
+# ============================================================
+.directory
+.Trash-*
+.history/
 
-# Models / large artifacts
-*.gguf
-*.safetensors
-*.bin
-*.pt
-*.pth
-
-# Database / generated artifacts
-*.db
+# ============================================================
+# Local databases / runtime state
+# ============================================================
 *.sqlite
 *.sqlite3
-*.dump
+*.db
 
-# OS
-.DS_Store
+# PostgreSQL local/runtime data
+postgres-data/
+postgresql-data/
+pgdata/
+
+# ============================================================
+# Generated artifacts
+# ============================================================
+*.prof
+*.pstats
+*.dump
+*.bak
+
+# ============================================================
+# Local benchmark / experiment output
+# ============================================================
+benchmark_results/
+evaluation_results/
+eval_results/
+tmp/
+temp/
+
+# ============================================================
+# Python/Jupyter
+# ============================================================
+.ipynb_checkpoints/
+
+# ============================================================
+# Keep these OUT of .gitignore intentionally:
+#
+# offline_wheels/
+# models/
+# uvm-core/
+#
+# because you said you want the Git repository to contain
+# everything required for migration/offline setup.
+# ============================================================

@@ -22,7 +22,14 @@ class JobManager:
     def __init__(self, store: JobStore):
         self._store = store
 
-    def create_job(self, project_id: str, root_path: str) -> Tuple[Job, bool]:
+    def create_job(
+        self,
+        project_id: str,
+        root_path: str | None,
+        rtl_root: str | None = None,
+        tb_root: str | None = None,
+        docs_root: str | None = None,
+    ) -> Tuple[Job, bool]:
         """Create a new queued indexing job, or return existing running/queued job for the same project.
         Returns a tuple (job, created) where created is True if a new job was created.
         """
@@ -35,7 +42,10 @@ class JobManager:
         job = Job(
             job_id=job_id,
             project_id=project_id,
-            root_path=root_path,
+            root_path=root_path or "",
+            rtl_root=rtl_root,
+            tb_root=tb_root,
+            docs_root=docs_root,
             state=JobState.QUEUED,
         )
         self._store.create_job(job)

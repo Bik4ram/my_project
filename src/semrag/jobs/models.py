@@ -42,6 +42,12 @@ class Job:
     statistics: Dict[str, Any] = field(default_factory=dict)
     # Input parameters
     root_path: str = ""
+    # Optional authoritative area roots (multi-root / portable projects).
+    # Mirrors the ``projects`` table: ``root_path`` is the legacy single
+    # root; the area roots are additive and nullable.
+    rtl_root: Optional[str] = None
+    tb_root: Optional[str] = None
+    docs_root: Optional[str] = None
     # Retry mechanism
     retry_count: int = 0
 
@@ -58,5 +64,9 @@ class Job:
             "duration": self.duration,
             "error": self.error,
             "statistics": self.statistics,
+            "root_path": self.root_path,
+            "rtl_root": self.rtl_root,
+            "tb_root": self.tb_root,
+            "docs_root": self.docs_root,
             "retry_count": self.retry_count,
         }

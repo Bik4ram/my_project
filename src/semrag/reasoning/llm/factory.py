@@ -50,8 +50,16 @@ def build_llm(settings: Settings | None = None) -> LLMProvider:
     if provider == "ollama":
         # Ollama accepts ``options.num_predict`` per call; we set it from
         # ``Settings.llm_num_predict`` so the latency cap is operator-
-        # configurable rather than hard-coded in the client.
-        client: LLMProvider = OllamaLLM(**common, num_predict=settings.llm_num_predict)
+        # configurable rather than hard-coded in the client. ``think`` is
+        # the top-level flag that keeps Qwen3-class reasoning models from
+        # spending the whole generation budget in their thinking phase
+        # (which otherwise ends in ``done_reason="length"`` and an empty
+        # answer); it is Ollama-specific, so it lives on the Ollama client.
+        client: LLMProvider = OllamaLLM(
+            **common,
+            num_predict=settings.llm_num_predict,
+            think=settings.llm_ollama_think,
+        )
     elif provider == "openai":
         client = OpenAILLM(**common)
     elif provider in ("openai_compatible", "vllm"):

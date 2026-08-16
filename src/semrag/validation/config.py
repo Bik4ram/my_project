@@ -37,11 +37,16 @@ class ValidationTarget(BaseModel):
 class TrustedExternalDep(BaseModel):
     """A single trusted external dependency for a validation project.
 
-    The path MUST be an absolute directory on the host filesystem. It is
-    declared by the operator in the project config (not by the LLM or
-    request body) and is the ONLY way a validation target can reference
-    files outside the project root. Targets reference these via the
-    ``ext:<name>/<subpath>`` form for incdirs and files.
+    The path is declared by the operator in the project config (not by the
+    LLM or request body) and is the ONLY way a validation target can
+    reference files outside the project root. Targets reference these via
+    the ``ext:<name>/<subpath>`` form for incdirs and files.
+
+    The path may be an absolute directory, an absolute directory using
+    ``$VAR``/``${VAR}`` environment expansion (portable UVM checkouts via
+    ``${SEMRAG_UVM_ROOT}``), or a relative directory resolved against the
+    validation config directory (in-repo helper stubs). See
+    ``runner._resolve_path``.
     """
 
     name: str

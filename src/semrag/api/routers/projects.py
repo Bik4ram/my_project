@@ -32,16 +32,15 @@ from __future__ import annotations
 
 import os
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Tuple
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from semrag.api.auth import require_api_key
 from semrag.api.api_key import APIKey
-from semrag.api.config import get_embedding_provider_dir
+from semrag.api.auth import require_api_key
 from semrag.api.dependencies import (
     get_db_session,
     get_job_manager,
@@ -52,6 +51,7 @@ from semrag.api.project_auth import get_project_authorizer
 from semrag.api.query_cache import QueryCache, get_query_cache
 from semrag.api.rate_limit import enforce_rate_limit
 from semrag.api.schemas import (
+    DeleteFileResponse,
     FileSummary,
     IndexProjectRequest,
     IndexProjectResponse,
@@ -61,18 +61,14 @@ from semrag.api.schemas import (
     WriteFileRequest,
     WriteFileResponse,
 )
+from semrag.core.project_paths import (
+    ActiveProject,
+    ProjectPathError,
+    ProjectPaths,
+    detect_active_project,
+)
 from semrag.jobs.models import JobState
-from semrag.ingestion.chunking.pipeline import chunk_project
-from semrag.ingestion.embedding.cache import InMemoryEmbeddingCache
-from semrag.ingestion.embedding.pipeline import embed_chunks
-from semrag.ingestion.embedding.tfidf_provider import TfidfEmbeddingProvider
-from semrag.ingestion.ir.builder import IRBuilder
-from semrag.ingestion.parsers.pipeline import build_default_registry
-from semrag.ingestion.scanner.orchestrator import Scanner
-from semrag.storage.postgres.ir_repository import IRGraphRepository
-from semrag.storage.postgres.manifest_store import PostgresManifestStore
 from semrag.storage.postgres.models import FileRow, IRNodeRow, Project, ScanManifestRow
-from semrag.storage.vector.pgvector_store import PgvectorStore
 
 router = APIRouter(prefix="/v1/projects", tags=["projects"])
 
@@ -130,17 +126,55 @@ def index_project(
     anymore — that path is what made multi-replica deployments
     double-run or silently drop jobs across restarts.
     """
-    root = validate_project_root(request.root_path)
-
-    # Validate that the root path exists
-    if not root.is_dir():
+    # Accept either the legacy single ``root_path`` or the portable
+    # multi-root form (rtl_root / tb_root / docs_root). Both may be given
+    # together — the area roots are authoritative for resolution, the
+    # ``root_path`` remains the display/validation working root.
+    raw_roots = {
+        "rtl_root": request.rtl_root,
+        "tb_root": request.tb_root,
+        "docs_root": request.docs_root,
+    }
+    provided_areas = {name for name, value in raw_roots.items() if value}
+    has_root = bool(request.root_path and request.root_path.strip())
+    if not has_root and not provided_areas:
         raise HTTPException(
             status_code=400,
-            detail=f"Project root does not exist: {root}",
+            detail=(
+                "IndexProjectRequest requires at least one of root_path, "
+                "rtl_root, tb_root, docs_root."
+            ),
         )
 
+    roots: dict[str, Path] = {}
+    for name, value in raw_roots.items():
+        if not value:
+            continue
+        resolved = validate_project_root(value)
+        if not resolved.is_dir():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Project {name} does not exist: {resolved}",
+            )
+        roots[name.replace("_root", "")] = resolved
+
+    root: Path | None = None
+    if has_root:
+        root = validate_project_root(request.root_path)
+        if not root.is_dir():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Project root does not exist: {root}",
+            )
+
     # Create the job or get existing one
-    job, created = job_manager.create_job(project_id=project_id, root_path=str(root))
+    job, created = job_manager.create_job(
+        project_id=project_id,
+        root_path=str(root) if root else None,
+        rtl_root=str(roots.get("rtl")) if "rtl" in roots else None,
+        tb_root=str(roots.get("tb")) if "tb" in roots else None,
+        docs_root=str(roots.get("docs")) if "docs" in roots else None,
+    )
 
     # If the job was just queued, invalidate any cached query results
     # for this project. We invalidate on QUEUE (not on completion) so
@@ -340,11 +374,24 @@ def read_file_content(
 _MAX_WRITE_FILE_BYTES = 2 * 1024 * 1024  # 2 MiB cap on a single write
 
 
-def _resolve_project_root(db: Session, project_id: str) -> Path:
-    """Look up the project, return its root as a resolved Path.
+def _project_paths_from_row(row) -> ProjectPaths:
+    """Build a ``ProjectPaths`` from a ``Project`` row (no DB access)."""
+    return ProjectPaths(
+        project_id=row.project_id,
+        root_path=Path(row.root_path).resolve() if row.root_path else None,
+        rtl_root=Path(row.rtl_root).resolve() if row.rtl_root else None,
+        tb_root=Path(row.tb_root).resolve() if row.tb_root else None,
+        docs_root=Path(row.docs_root).resolve() if row.docs_root else None,
+    )
+
+
+def _resolve_project_paths(db: Session, project_id: str) -> ProjectPaths:
+    """Look up the project, return its roots as a ``ProjectPaths``.
 
     Centralises the project-existence check so both the read and write
-    routes error consistently on a bad project_id.
+    routes error consistently on a bad project_id. A legacy single-root
+    project populates ``root_path`` only; a multi-root project populates
+    the area roots (and possibly ``root_path`` as its display root).
     """
     project_row = db.execute(
         select(Project).where(Project.project_id == project_id)
@@ -354,20 +401,76 @@ def _resolve_project_root(db: Session, project_id: str) -> Path:
             status_code=404,
             detail=f"Project not found: {project_id}",
         )
-    return Path(project_row.root_path).resolve()
+    return _project_paths_from_row(project_row)
+
+
+@router.get("/resolve")
+def resolve_project(
+    cwd: str | None = Query(
+        default=None,
+        description=(
+            "Working directory to resolve the active project for. Defaults "
+            "to the API process's current working directory."
+        ),
+    ),
+    db: Session = Depends(get_db_session),
+    api_key: APIKey = Depends(require_api_key),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    """Resolve the active project context for a working directory.
+
+    This is the single source of truth the MCP layer (and any other
+    context-aware caller) uses to turn a bare ``cwd`` into a project.
+    Detection order (documented in docs/PROJECT_ROOT_CONFIGURATION.md):
+
+    1. Explicit configuration: ``SEMRAG_RTL_ROOT`` / ``SEMRAG_TB_ROOT`` /
+       ``SEMRAG_DOCS_ROOT`` (plus ``SEMRAG_PROJECT_ID``).
+    2. Safe layout discovery: an ancestor of ``cwd`` containing both
+       ``rtl/`` and ``tb/`` subdirectories (legacy single-root).
+    3. Registered projects: any previously-registered project whose
+       configured roots contain ``cwd``.
+
+    Uses ``require_api_key`` (not the per-project authorizer) because the
+    path carries no ``{project_id}`` — the whole point is to resolve it.
+    """
+    cwd_path = Path(cwd or os.getcwd()).resolve()
+
+    active = detect_active_project(cwd_path, settings)
+    if active is not None:
+        return active.to_dict()
+
+    for row in db.execute(select(Project)).scalars().all():
+        paths = _project_paths_from_row(row)
+        if paths.is_read_allowed(cwd_path):
+            return ActiveProject(
+                project_id=row.project_id,
+                paths=paths,
+                area=paths.area_for(cwd_path),
+                source="registered",
+            ).to_dict()
+
+    raise HTTPException(
+        status_code=404,
+        detail=(
+            f"No project resolved for working directory {cwd_path}. "
+            "Configure SEMRAG_RTL_ROOT / SEMRAG_TB_ROOT / SEMRAG_DOCS_ROOT "
+            "or register the project first."
+        ),
+    )
 
 
 def _safe_resolve_write_target(
     project_id: str,
     file_path: str,
-    root: Path,
+    paths: ProjectPaths,
 ) -> Path:
     """Resolve ``file_path`` (project-relative) to an absolute path and
-    confirm it stays inside the project root. Rejects:
+    confirm it stays inside a writable project root. Rejects:
 
     - absolute paths (``/etc/passwd``, ``C:\\foo``)
     - ``..`` traversal segments
-    - symlink escapes (resolved target must remain under the project root)
+    - symlink escapes (resolved target must remain under a project root)
+    - writes under the read-only docs root (multi-root projects)
     - empty / whitespace-only / NUL-byte paths
     """
     if not file_path or not file_path.strip():
@@ -390,32 +493,26 @@ def _safe_resolve_write_target(
                 f"got absolute path: {file_path}"
             ),
         )
-    # Reject any '..' segments up front. ``resolve()`` would also catch
-    # them, but checking here gives a cleaner 400 message and avoids a
-    # stat() on the user-controlled suffix.
     if any(part == ".." for part in raw.parts):
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"file_path must not contain '..' traversal: {file_path}"
-            ),
+            detail=(f"file_path must not contain '..' traversal: {file_path}"),
         )
 
-    # Combine then resolve. ``resolve(strict=False)`` would follow a
-    # symlink at the leaf; we want that behaviour, because the
-    # subsequent ``is_relative_to`` check is what actually prevents
-    # escapes (resolve() of a symlink that points outside the project
-    # root lands outside the root and the check fails).
-    target = (root / raw).resolve()
-
     try:
-        target.relative_to(root)
-    except ValueError:
+        target = paths.resolve_relative(file_path)
+    except ProjectPathError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    if not paths.is_write_allowed(target):
         raise HTTPException(
             status_code=400,
             detail=(
-                f"Resolved file path escapes project root: {file_path} "
-                f"(project_id={project_id})"
+                f"Resolved file path is outside a writable project root "
+                f"(docs is read-only): {file_path} (project_id={project_id})"
             ),
         )
 
@@ -455,8 +552,8 @@ def write_file_content(
     in the same directory, so a writer crash mid-flush cannot leave a
     half-written file at the target path.
     """
-    root = _resolve_project_root(db, project_id)
-    target = _safe_resolve_write_target(project_id, request.file_path, root)
+    paths = _resolve_project_paths(db, project_id)
+    target = _safe_resolve_write_target(project_id, request.file_path, paths)
 
     content_bytes = request.content.encode("utf-8")
     if len(content_bytes) > _MAX_WRITE_FILE_BYTES:
@@ -549,8 +646,8 @@ def patch_file_content(
     Re-indexing is NOT triggered automatically; the response signals that
     the caller (MCP tool, agent loop) should re-index.
     """
-    root = _resolve_project_root(db, project_id)
-    target = _safe_resolve_write_target(project_id, request.file_path, root)
+    paths = _resolve_project_paths(db, project_id)
+    target = _safe_resolve_write_target(project_id, request.file_path, paths)
 
     if not target.is_file():
         raise HTTPException(
@@ -632,6 +729,104 @@ def patch_file_content(
         relative_path=request.file_path,
         replacements=1,
         bytes_written=len(content_bytes),
+        requires_reindex=True,
+    )
+
+
+@router.delete(
+    "/{project_id}/files/content",
+    response_model=DeleteFileResponse,
+)
+def delete_file_content(
+    project_id: str,
+    file_path: str = Query(..., description="Project-relative path of the file to delete."),
+    db: Session = Depends(get_db_session),
+    api_key: APIKey = Depends(get_project_authorizer()),
+    _rate_limit: None = Depends(enforce_rate_limit),
+    query_cache: QueryCache = Depends(get_query_cache),
+) -> DeleteFileResponse:
+    """Delete a text file inside the project root.
+
+    This is the companion to the write/patch surface for the SemiRAG
+    coding agent. It is intentionally strict:
+
+    - the target must already exist (a delete removes, it does not create)
+    - the target is constrained to the project's registered root path,
+      with the same absolute-path / ``..`` / symlink-escape rejection as
+      the write endpoint
+    - only files under writable roots (rtl/tb) can be deleted; docs is read-only
+    - the filesystem file is removed
+    - the corresponding database/index state is cleaned up:
+      * FileRow is deleted from the files table
+      * IR nodes for the file are deleted
+      * Chunks for the file are deleted from the vector store
+    - re-indexing is NOT triggered automatically; the response signals that
+      the caller (MCP tool, agent loop) should re-index
+
+    The operation is transactional: all database cleanup happens in a
+    single transaction that commits only if the filesystem delete succeeds.
+    """
+    paths = _resolve_project_paths(db, project_id)
+    target = _safe_resolve_write_target(project_id, file_path, paths)
+
+    if not target.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail=f"File does not exist: {file_path}",
+        )
+
+    # Delete from filesystem first (outside transaction) so a failure
+    # here doesn't leave the database in an inconsistent state with a
+    # ghost file that no longer exists on disk.
+    try:
+        target.unlink()
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete file from filesystem: {exc}",
+        ) from exc
+
+    # Now clean up database state in a transaction
+    try:
+        # CRITICAL ORDERING: Delete chunks FIRST (FK constraint:
+        # chunks.source_node_id -> ir_nodes.id). Then delete IR nodes,
+        # then FileRow.
+        from semrag.storage.vector.pgvector_store import PgvectorStore
+        PgvectorStore(db).delete_by_paths(project_id, [file_path])
+
+        # Delete IR nodes for this file
+        db.execute(
+            delete(IRNodeRow).where(
+                IRNodeRow.project_id == project_id,
+                IRNodeRow.relative_path == file_path,
+            )
+        )
+
+        # Delete FileRow
+        db.execute(
+            delete(FileRow).where(
+                FileRow.project_id == project_id,
+                FileRow.relative_path == file_path,
+            )
+        )
+
+        db.commit()
+
+        # Invalidate query cache so subsequent searches don't return stale results
+        query_cache.invalidate_project(project_id)
+
+    except Exception as exc:
+        db.rollback()
+        # Best-effort: try to restore the file? Not safe; just report failure.
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to clean up database state after filesystem delete: {exc}",
+        ) from exc
+
+    return DeleteFileResponse(
+        project_id=project_id,
+        relative_path=file_path,
+        deleted=True,
         requires_reindex=True,
     )
 
@@ -735,6 +930,9 @@ def project_info(
     return {
         "project_id": project_id,
         "root_path": project_row.root_path,
+        "rtl_root": project_row.rtl_root,
+        "tb_root": project_row.tb_root,
+        "docs_root": project_row.docs_root,
         "created_at": project_row.created_at.isoformat() if project_row.created_at else None,
         "file_count": int(file_count),
         "total_bytes": int(total_bytes),
