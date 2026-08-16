@@ -16,7 +16,7 @@ dependencies = [
     "pyyaml",
     "pdfplumber",
     "openpyxl",
-    "sqlalchemy>=2.0",
+    "sqlalchemy>=2.0.52",
     "alembic",
     "psycopg2-binary",
     "pgvector",
